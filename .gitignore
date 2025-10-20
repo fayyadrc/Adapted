@@ -1,0 +1,27 @@
+# Node
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment files
+.env
+.env.*
+
+# IDEs and system files
+.DS_Store
+.idea/
+.vscode/
+
+# Firebase service account (do not commit)
+/backend/serviceAccountKey.json
+
+# Logs
+logs
+*.log
