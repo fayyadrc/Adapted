@@ -1,5 +1,5 @@
 import Header from './components/Header';
-import FileUpload from './components/FileUpload';
+import FileUpload from './components/fileUpload';
 
 function App() {
   return (

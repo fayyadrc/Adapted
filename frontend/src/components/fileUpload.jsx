@@ -4,6 +4,8 @@ import { UploadCloud, File as FileIcon, X } from 'lucide-react';
 function FileUpload() {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -40,12 +42,41 @@ function FileUpload() {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) {
       console.log("No file selected.");
       return;
     }
-    console.log("Simulating upload for:", file.name);
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Make API call to backend
+      const response = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const mindmapData = await response.json();
+        console.log("Mind map generated successfully:", mindmapData);
+        // TODO: Handle the mindmap data (display it, store it, etc.)
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to generate mind map');
+        console.error("Error generating mind map:", errorData.error);
+      }
+    } catch (error) {
+      setError('Network error: Unable to connect to server');
+      console.error("Network error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const selectFile = () => {
@@ -98,10 +129,17 @@ function FileUpload() {
 
           <button
             onClick={handleUpload}
+            disabled={isLoading}
             className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed"
           >
-            Generate Mind Map
+            {isLoading ? 'Generating Mind Map...' : 'Generate Mind Map'}
           </button>
+
+          {error && (
+            <div className="mt-4 bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
         </div>
       )}
     </div>
