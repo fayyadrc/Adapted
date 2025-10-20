@@ -17,21 +17,20 @@ def generate_mindmap_from_text(text_content):
     
     # This is the detailed instruction (prompt) for the AI model
     prompt = f"""
-    Analyze the following text and generate a structured JSON object for a mind map visualization.
-    The JSON must follow this structure precisely:
-    - A single root object with a key named "root".
-    - The "root" object must contain a "topic" (the central theme) and "children" (an array of nodes).
-    - Each child node must contain a "topic" (string) and can optionally have a "summary" (string) and its own "children" array for further nesting.
-    - Ensure the output is only the raw JSON, without any surrounding text, explanations, or markdown formatting like ```json.
-
+    From the text below, generate a mind map.
+    
     Text to Analyze:
     ---
     {text_content}
     ---
     """
     
+    generation_config = {
+        "response_mime_type": "application/json",
+    }
+    
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, generation_config=generation_config)
         return response.text
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
