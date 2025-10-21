@@ -15,7 +15,7 @@ def extract_text_from_pdf(file_stream):
 
 def extract_text_from_docx(file_stream):
     try:
-        doc = docx.Document(file_stream)
+        doc = Document(file_stream)
         text = "\n".join([para.text for para in doc.paragraphs])
         return text
     except Exception as e:

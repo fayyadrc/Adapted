@@ -21,7 +21,9 @@ def create_app():
     # Firebase admin initialization (only if not already initialized)
     if not firebase_admin._apps:
         try:
-            cred = credentials.Certificate("serviceAccountKey.json")
+            # Use absolute path for the service account key
+            service_account_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "serviceAccountKey.json")
+            cred = credentials.Certificate(service_account_path)
             firebase_admin.initialize_app(cred)
             print("Firestore Admin initialized")
         except Exception as e:
