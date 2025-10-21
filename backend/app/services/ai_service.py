@@ -4,10 +4,8 @@ import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Configure the Gemini client library using the API key from environment variables
 try:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -30,16 +28,16 @@ def clean_json_response(response_text: str) -> str:
 
     text = response_text.strip()
 
-    # Remove common markdown fences like ```json and ```
+    
     text = re.sub(r'```\s*json', '```', text, flags=re.IGNORECASE)
     text = text.replace('```', '').strip()
 
-    # Find the first '{'
+    
     start = text.find('{')
     if start == -1:
         return text.strip()
 
-    # Find the matching closing brace by counting nesting
+    
     depth = 0
     end = None
     for i in range(start, len(text)):
@@ -54,7 +52,7 @@ def clean_json_response(response_text: str) -> str:
 
     if end is not None:
         return text[start:end + 1].strip()
-    # Fallback: return from the first '{' to the end
+    
     return text[start:].strip()
 
 
@@ -65,7 +63,7 @@ def generate_mindmap_from_text(text_content):
     """
     model = genai.GenerativeModel('gemini-2.5-flash')
 
-    # A strict prompt describing the exact JSON schema and instructing the model
+    
     prompt = f"""
     Analyze the following text and generate a structured JSON object for a mind map visualization.
     The structure should be lateral (horizontal flow), with the main root having 3-5 major branches (children).
@@ -105,7 +103,6 @@ def generate_mindmap_from_text(text_content):
     """
 
     try:
-        # Helper to call the model and extract cleaned JSON string
         def _attempt(p):
             resp = model.generate_content(p)
             raw = resp.text or ''
@@ -116,7 +113,6 @@ def generate_mindmap_from_text(text_content):
             parsed = json.loads(cleaned)
             return json.dumps(parsed, ensure_ascii=False)
         except Exception:
-            # Retry once with an even stricter instruction
             strict_prompt = (
                 prompt
                 + "\nIMPORTANT: Return ONLY valid JSON exactly as specified above. No text, no markdown, no explanation. If you cannot produce valid JSON, respond with an object like {\"error\": \"description\"}."
