@@ -31,7 +31,9 @@ def create_app():
 
     # Register blueprints
     from .api.mindmap import mindmap_bp
+    from .api.auth import auth_bp
     app.register_blueprint(mindmap_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     
     # Health check route
     @app.route('/health')
