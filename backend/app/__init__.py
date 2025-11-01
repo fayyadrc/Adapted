@@ -27,8 +27,10 @@ def create_app():
 
     from .api.mindmap import mindmap_bp
     from .api.auth import auth_bp
+    from .api.assessment import assessment_bp
     app.register_blueprint(mindmap_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     
     @app.route('/health')
     def health_check():
