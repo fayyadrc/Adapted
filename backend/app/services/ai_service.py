@@ -205,7 +205,7 @@ def generate_quiz_from_text(text_content):
         ]
     }}
 
-    Create 5-7 questions total. Mix multiple choice and true/false questions. Make sure questions test understanding, not just memorization. Keep language clear and appropriate for high school level.
+    Create 8-10 questions total. Mix multiple choice and true/false questions. Make sure questions test understanding, not just memorization. Keep language clear and appropriate for high school level.
 
     Text for quiz creation:
     ---
