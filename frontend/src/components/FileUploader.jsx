@@ -3,38 +3,40 @@ import { UploadCloud, FileText, Brain, Headphones, Play, X, ChevronRight, BarCha
 import { Link } from 'react-router-dom';
 import MindMap from './MindMap';
 
-const SimpleUploader = () => {
+const FileUploader = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mindMapData, setMindMapData] = useState(null);
+  const [summaryData, setSummaryData] = useState(null);
+  const [quizData, setQuizData] = useState(null);
   const [error, setError] = useState(null);
 
   const formats = [
     {
-      id: 'mindmap',
-      title: 'Mind Map',
-      description: 'Visual diagram of your content',
+      id: 'visual',
+      title: 'Visual Learning',
+      description: 'Mind maps, diagrams, and visual content',
       icon: Brain,
       color: 'purple',
-      example: 'Great for seeing connections'
-    },
-    {
-      id: 'summary',
-      title: 'Summary',
-      description: 'Key points in bullet format',
-      icon: FileText,
-      color: 'blue',
-      example: 'Perfect for quick review'
+      example: 'Perfect for visual learners'
     },
     {
       id: 'audio',
-      title: 'Audio',
-      description: 'Listen to your content',
+      title: 'Audio Learning',
+      description: 'Podcasts, summaries, and audio content',
       icon: Headphones,
+      color: 'blue',
+      example: 'Great for auditory learners'
+    },
+    {
+      id: 'quiz',
+      title: 'Quiz Generation',
+      description: 'Interactive quizzes and practice questions',
+      icon: FileText,
       color: 'green',
-      example: 'Study while walking'
+      example: 'Test your knowledge'
     }
   ];
 
@@ -47,6 +49,9 @@ const SimpleUploader = () => {
     )) {
       setSelectedFile(file);
       setSelectedFormat(null);
+      setError(null); // Clear any previous errors
+    } else if (file) {
+      setError('Please upload a PDF, Word document, or text file.');
     }
   };
 
@@ -63,6 +68,9 @@ const SimpleUploader = () => {
     )) {
       setSelectedFile(file);
       setSelectedFormat(null);
+      setError(null); // Clear any previous errors
+    } else if (file) {
+      setError('Please upload a PDF, Word document, or text file.');
     }
   }, []);
 
@@ -82,6 +90,8 @@ const SimpleUploader = () => {
     setSelectedFile(null);
     setSelectedFormat(null);
     setMindMapData(null);
+    setSummaryData(null);
+    setQuizData(null);
     setError(null);
   };
 
@@ -91,12 +101,23 @@ const SimpleUploader = () => {
     setIsProcessing(true);
     setError(null);
     setMindMapData(null);
+    setSummaryData(null);
+    setQuizData(null);
 
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('http://localhost:5000/api/upload', {
+      let endpoint = '';
+      if (selectedFormat.id === 'visual') {
+        endpoint = 'http://localhost:5000/api/upload';
+      } else if (selectedFormat.id === 'audio') {
+        endpoint = 'http://localhost:5000/api/generate-summary';
+      } else if (selectedFormat.id === 'quiz') {
+        endpoint = 'http://localhost:5000/api/generate-quiz';
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
@@ -107,12 +128,13 @@ const SimpleUploader = () => {
         throw new Error(data.error || 'Something went wrong.');
       }
 
-      // For now, only handle mind map format from backend
-      if (selectedFormat.id === 'mindmap') {
+      // Handle different learning formats
+      if (selectedFormat.id === 'visual') {
         setMindMapData(data);
-      } else {
-        // For other formats, show a placeholder message
-        alert(`${selectedFormat.title} feature coming soon! Currently only Mind Maps are supported.`);
+      } else if (selectedFormat.id === 'audio') {
+        setSummaryData(data);
+      } else if (selectedFormat.id === 'quiz') {
+        setQuizData(data);
       }
     } catch (err) {
       setError(err.message);
@@ -203,7 +225,7 @@ const SimpleUploader = () => {
             <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
               <span className="text-purple-600 font-bold">2</span>
             </div>
-            <h2 className="text-xl font-semibold text-gray-800">Choose your format</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Choose your learning format</h2>
           </div>
           
           <div className="space-y-3">
@@ -286,8 +308,91 @@ const SimpleUploader = () => {
         </div>
       )}
 
-      {/* Assessment CTA - only show if no mind map is displayed */}
-      {!mindMapData && (
+      {/* Summary Display */}
+      {summaryData && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Summary</h3>
+            <button
+              onClick={() => setSummaryData(null)}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">{summaryData.title}</h4>
+            <p className="text-gray-700 mb-4 leading-relaxed">{summaryData.summary}</p>
+            
+            <h5 className="font-semibold text-gray-800 mb-3">Key Points:</h5>
+            <ul className="space-y-2 mb-4">
+              {summaryData.key_points?.map((point, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span className="text-gray-700">{point}</span>
+                </li>
+              ))}
+            </ul>
+            
+            {summaryData.example && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h6 className="font-medium text-blue-800 mb-2">Example:</h6>
+                <p className="text-blue-700">{summaryData.example}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Display */}
+      {quizData && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Interactive Quiz</h3>
+            <button
+              onClick={() => setQuizData(null)}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-2">{quizData.title}</h4>
+            <p className="text-gray-600 mb-6">{quizData.description}</p>
+            
+            <div className="space-y-6">
+              {quizData.questions?.map((question, qIndex) => (
+                <div key={qIndex} className="p-4 bg-gray-50 rounded-lg">
+                  <h5 className="font-medium text-gray-800 mb-3">
+                    {qIndex + 1}. {question.question}
+                  </h5>
+                  <div className="space-y-2">
+                    {question.options?.map((option, oIndex) => (
+                      <label key={oIndex} className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`question-${qIndex}`}
+                          className="mr-3 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-gray-700">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3 p-3 bg-green-50 rounded border-l-4 border-green-400">
+                    <p className="text-sm text-green-700">
+                      <strong>Answer:</strong> {question.options?.[question.correct_answer]}
+                    </p>
+                    <p className="text-sm text-green-600 mt-1">{question.explanation}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assessment CTA - only show if no content is displayed */}
+      {!mindMapData && !summaryData && !quizData && (
         <div className="mt-12 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100">
           <div className="flex items-center mb-3">
             <BarChart3 className="w-6 h-6 text-purple-600 mr-3" />
@@ -309,4 +414,4 @@ const SimpleUploader = () => {
   );
 };
 
-export default SimpleUploader;
+export default FileUploader;

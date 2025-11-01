@@ -1,77 +1,68 @@
-import os
-import requests
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-import uvicorn
+import json
+from flask import Blueprint, request, jsonify
+from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
+from ..services.ai_service import generate_summary_from_text, generate_quiz_from_text
 
-# /Users/fayyadrc/Desktop/adaptedMVP/Adapted/backend/app/api/summary.py
+summary_bp = Blueprint('summary', __name__)
 
-app = FastAPI()
+@summary_bp.route('/generate-summary', methods=['POST'])
+def generate_summary():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/text-bison-001")
-GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta2/{GEMINI_MODEL}:generate"
-
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY environment variable is required")
-
-class SummaryRequest(BaseModel):
-    text: str
-    student_level: Optional[str] = "high school"  # e.g. "middle school", "undergrad", "beginner"
-    max_output_tokens: Optional[int] = 300
-
-class SummaryResponse(BaseModel):
-    summary: str
-    model: str
-
-def build_prompt(text: str, level: str) -> str:
-    return (
-        f"You are an educational assistant. Summarize the following text for a student at the '{level}' level.\n\n"
-        "Return:\n"
-        "1) A short plain-language summary (2-3 sentences).\n"
-        "2) 4-6 key bullet points (concise).\n"
-        "3) A simple, concrete example or analogy.\n\n"
-        "Keep it easy to understand, avoid jargon, and highlight the most important concepts.\n\n"
-        f"Text:\n{text}"
-    )
-
-@app.post("/summarize", response_model=SummaryResponse)
-def summarize(req: SummaryRequest):
-    if not req.text or not req.text.strip():
-        raise HTTPException(status_code=400, detail="text is required")
-
-    prompt = build_prompt(req.text, req.student_level)
-
-    payload = {
-        "prompt": {"text": prompt},
-        "maxOutputTokens": req.max_output_tokens,
-        "temperature": 0.2,
-    }
-
-    params = {"key": GEMINI_API_KEY}
-    resp = requests.post(GEMINI_ENDPOINT, json=payload, params=params, timeout=30)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Gemini API error: {resp.status_code} {resp.text}")
-
-    data = resp.json()
-    # response structure: data["candidates"][0]["content"] or data["output"][0]["content"] depending on version
-    summary_text = None
-    # check common fields
-    if "candidates" in data and isinstance(data["candidates"], list) and data["candidates"]:
-        summary_text = data["candidates"][0].get("content")
-    elif "output" in data and isinstance(data["output"], list) and data["output"]:
-        # some versions nest text in "content" or "text"
-        summary_text = data["output"][0].get("content") or data["output"][0].get("text")
+    text_content = ""
+    filename = file.filename.lower()
+    
+    if filename.endswith('.pdf'):
+        text_content = extract_text_from_pdf(file.stream.read())
+    elif filename.endswith('.docx'):
+        text_content = extract_text_from_docx(file)
+    elif filename.endswith('.txt'):
+        text_content = file.read().decode('utf-8')
     else:
-        # fallback: stringify
-        summary_text = data.get("content") or str(data)
+        return jsonify({"error": "Unsupported file type. Use PDF, DOCX, or TXT."}), 415
 
-    if not summary_text:
-        raise HTTPException(status_code=502, detail="No summary returned from Gemini")
+    if not text_content or not text_content.strip():
+        return jsonify({"error": "Could not extract text from the document."}), 500
+        
+    try:
+        summary_data = generate_summary_from_text(text_content)
+        return jsonify(summary_data), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate summary: {str(e)}"}), 500
 
-    return SummaryResponse(summary=summary_text, model=GEMINI_MODEL)
+@summary_bp.route('/generate-quiz', methods=['POST'])
+def generate_quiz():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
 
-if __name__ == "__main__":
-    # For local testing only
-    uvicorn.run("summary:app", host="0.0.0.0", port=8000, reload=True)
+    text_content = ""
+    filename = file.filename.lower()
+    
+    if filename.endswith('.pdf'):
+        text_content = extract_text_from_pdf(file.stream.read())
+    elif filename.endswith('.docx'):
+        text_content = extract_text_from_docx(file)
+    elif filename.endswith('.txt'):
+        text_content = file.read().decode('utf-8')
+    else:
+        return jsonify({"error": "Unsupported file type. Use PDF, DOCX, or TXT."}), 415
+
+    if not text_content or not text_content.strip():
+        return jsonify({"error": "Could not extract text from the document."}), 500
+        
+    try:
+        quiz_data = generate_quiz_from_text(text_content)
+        return jsonify(quiz_data), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate quiz: {str(e)}"}), 500

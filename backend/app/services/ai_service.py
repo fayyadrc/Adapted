@@ -118,3 +118,140 @@ def generate_mindmap_from_text(text_content):
         print(f"Error calling Gemini API: {e}")
         return '{"error": "Failed to generate mind map due to an API error."}'
 
+
+def generate_summary_from_text(text_content):
+    """Generate a student-friendly summary from text content"""
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    prompt = f"""
+    You are an educational assistant helping high school students. Create a clear, engaging summary of the following text.
+
+    Format your response as a JSON object with this exact structure:
+    {{
+        "title": "Brief title for the content",
+        "summary": "2-3 sentence overview in simple language",
+        "key_points": [
+            "Key point 1",
+            "Key point 2", 
+            "Key point 3",
+            "Key point 4"
+        ],
+        "example": "A simple, relatable example or analogy to help understand the main concept"
+    }}
+
+    Keep the language simple and engaging for high school students. Avoid jargon and focus on the most important concepts.
+
+    Text to summarize:
+    ---
+    {text_content}
+    ---
+    
+    Return ONLY the JSON object, no additional text or formatting.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        raw_response = response.text or ''
+        cleaned_response = clean_json_response(raw_response)
+        
+        try:
+            parsed_data = json.loads(cleaned_response)
+            return parsed_data
+        except json.JSONDecodeError:
+            return {
+                "error": "Failed to parse AI response",
+                "title": "Summary Error",
+                "summary": "Unable to generate summary at this time.",
+                "key_points": ["Please try again with a different document"],
+                "example": "Technical error occurred"
+            }
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        return {
+            "error": f"Failed to generate summary: {str(e)}",
+            "title": "Error",
+            "summary": "Unable to process your document.",
+            "key_points": ["Please try again"],
+            "example": "System error"
+        }
+
+
+def generate_quiz_from_text(text_content):
+    """Generate an interactive quiz from text content"""
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    prompt = f"""
+    You are an educational assistant creating a quiz for high school students. Generate an engaging quiz based on the following text.
+
+    Format your response as a JSON object with this exact structure:
+    {{
+        "title": "Quiz title based on the content",
+        "description": "Brief description of what this quiz covers",
+        "questions": [
+            {{
+                "question": "Question text here",
+                "type": "multiple_choice",
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "correct_answer": 0,
+                "explanation": "Brief explanation of why this is correct"
+            }},
+            {{
+                "question": "Another question",
+                "type": "true_false", 
+                "options": ["True", "False"],
+                "correct_answer": 1,
+                "explanation": "Explanation for the answer"
+            }}
+        ]
+    }}
+
+    Create 5-7 questions total. Mix multiple choice and true/false questions. Make sure questions test understanding, not just memorization. Keep language clear and appropriate for high school level.
+
+    Text for quiz creation:
+    ---
+    {text_content}
+    ---
+    
+    Return ONLY the JSON object, no additional text or formatting.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        raw_response = response.text or ''
+        cleaned_response = clean_json_response(raw_response)
+        
+        try:
+            parsed_data = json.loads(cleaned_response)
+            return parsed_data
+        except json.JSONDecodeError:
+            return {
+                "error": "Failed to parse AI response",
+                "title": "Quiz Generation Error",
+                "description": "Unable to generate quiz at this time.",
+                "questions": [
+                    {
+                        "question": "Please try uploading your document again.",
+                        "type": "multiple_choice",
+                        "options": ["Try again", "Upload different file", "Contact support", "Check file format"],
+                        "correct_answer": 0,
+                        "explanation": "Technical error occurred during quiz generation."
+                    }
+                ]
+            }
+    except Exception as e:
+        print(f"Error generating quiz: {e}")
+        return {
+            "error": f"Failed to generate quiz: {str(e)}",
+            "title": "Error",
+            "description": "Unable to process your document for quiz creation.",
+            "questions": [
+                {
+                    "question": "What should you do when encountering this error?",
+                    "type": "multiple_choice", 
+                    "options": ["Try again", "Contact support", "Check internet", "All of the above"],
+                    "correct_answer": 3,
+                    "explanation": "System errors can usually be resolved by trying again or contacting support."
+                }
+            ]
+        }
+

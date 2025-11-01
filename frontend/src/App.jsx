@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
-import SimpleUploader from './components/SimpleUploader';
+import FileUploader from './components/FileUploader';
 import AssessmentForm from './components/AssessmentForm';
 import Login from './components/Login';
 import MindMap from './components/MindMap';
@@ -16,7 +16,7 @@ function App() {
             <div className="min-h-screen bg-gray-50">
               <Header />
               <main className="py-8">
-                <SimpleUploader />
+                <FileUploader />
               </main>
             </div>
           }
