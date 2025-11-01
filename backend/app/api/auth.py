@@ -4,9 +4,6 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """
-    Handles user login.
-    """
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')

@@ -17,12 +17,6 @@ except Exception as e:
 
 
 def clean_json_response(response_text: str) -> str:
-    """Clean the raw model response and extract the first JSON object.
-
-    - Removes markdown code fences like ```json
-    - Extracts only the JSON part between the first '{' and the matching '}'
-    - Strips surrounding whitespace
-    """
     if not response_text:
         return ''
 
@@ -57,10 +51,6 @@ def clean_json_response(response_text: str) -> str:
 
 
 def generate_mindmap_from_text(text_content):
-    """
-    Sends text content to the Gemini API and requests a structured JSON output
-    for a mind map, ensuring the response is clean.
-    """
     model = genai.GenerativeModel('gemini-2.5-flash')
 
     
