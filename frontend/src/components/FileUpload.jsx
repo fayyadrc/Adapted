@@ -110,8 +110,7 @@ const FileUpload = () => {
         </button>
       </div>
 
-      {/* *** THIS IS THE NEW PART *** */}
-      {/* Render the MindMap component if data is available */}
+      
       {mindMapData && <MindMap data={mindMapData} />}
     </div>
   );
