@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard';
 import Upload from './components/Upload';
 import Results from './components/Results';
 import Assessment from './components/Assessment';
+import Profile from './components/Profile';
 import './App.css';
 
 function App() {
@@ -80,6 +81,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Assessment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             }
           />

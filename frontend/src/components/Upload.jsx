@@ -5,9 +5,13 @@ export default function Upload() {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [selectedFormats, setSelectedFormats] = useState({
-    visual: true,
+    visual: {
+      mindMap: true,
+      charts: true,
+      diagrams: true,
+    },
     audio: true,
-    quiz: true
+    quiz: true,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -62,9 +66,31 @@ export default function Upload() {
   };
 
   const handleFormatToggle = (format) => {
+    if (format === 'visual') {
+      const allVisualsSelected = Object.values(selectedFormats.visual).every(Boolean);
+      setSelectedFormats(prev => ({
+        ...prev,
+        visual: {
+          mindMap: !allVisualsSelected,
+          charts: !allVisualsSelected,
+          diagrams: !allVisualsSelected,
+        },
+      }));
+    } else {
+      setSelectedFormats(prev => ({
+        ...prev,
+        [format]: !prev[format],
+      }));
+    }
+  };
+
+  const handleVisualFormatToggle = (format) => {
     setSelectedFormats(prev => ({
       ...prev,
-      [format]: !prev[format]
+      visual: {
+        ...prev.visual,
+        [format]: !prev.visual[format],
+      },
     }));
   };
 
@@ -82,7 +108,16 @@ export default function Upload() {
       return;
     }
 
-    const selectedCount = Object.values(selectedFormats).filter(Boolean).length;
+    const selectedCount = Object.values(selectedFormats).filter(value => {
+      if (typeof value === 'boolean') {
+        return value;
+      }
+      if (typeof value === 'object') {
+        return Object.values(value).some(Boolean);
+      }
+      return false;
+    }).length;
+
     if (selectedCount === 0) {
       setError('Please select at least one output format');
       return;
@@ -104,7 +139,7 @@ export default function Upload() {
 
       // Mock success response
       const uploadId = Math.random().toString(36).substr(2, 9);
-      navigate(`/results/${uploadId}`);
+      navigate(`/results/${uploadId}`, { state: { title: title, selectedFormats: selectedFormats } });
     } catch (err) {
       setError('Upload failed. Please try again.');
     } finally {
@@ -222,21 +257,55 @@ export default function Upload() {
 
               <div className="space-y-4">
                 {/* Visual Learning */}
-                <label className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={selectedFormats.visual}
-                    onChange={() => handleFormatToggle('visual')}
-                    className="w-5 h-5 text-purple-600 rounded mt-1"
-                    disabled={loading}
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">Visual Learning</h3>
-                    <p className="text-sm text-gray-600">
-                      Mind maps, charts, diagrams, and infographics to visualize concepts
-                    </p>
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <label className="flex items-start space-x-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Object.values(selectedFormats.visual).every(Boolean)}
+                      onChange={() => handleFormatToggle('visual')}
+                      className="w-5 h-5 text-purple-600 rounded mt-1"
+                      disabled={loading}
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">Visual Learning</h3>
+                      <p className="text-sm text-gray-600">
+                        Mind maps, charts, diagrams, and infographics to visualize concepts
+                      </p>
+                    </div>
+                  </label>
+                  <div className="mt-4 pl-8 space-y-3">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFormats.visual.mindMap}
+                        onChange={() => handleVisualFormatToggle('mindMap')}
+                        className="w-4 h-4 text-purple-600 rounded"
+                        disabled={loading}
+                      />
+                      <span className="text-sm text-gray-800">Mind Map</span>
+                    </label>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFormats.visual.charts}
+                        onChange={() => handleVisualFormatToggle('charts')}
+                        className="w-4 h-4 text-purple-600 rounded"
+                        disabled={loading}
+                      />
+                      <span className="text-sm text-gray-800">Charts</span>
+                    </label>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFormats.visual.diagrams}
+                        onChange={() => handleVisualFormatToggle('diagrams')}
+                        className="w-4 h-4 text-purple-600 rounded"
+                        disabled={loading}
+                      />
+                      <span className="text-sm text-gray-800">Diagrams</span>
+                    </label>
                   </div>
-                </label>
+                </div>
 
                 {/* Audio Learning */}
                 <label className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
@@ -290,7 +359,15 @@ export default function Upload() {
                 onClick={() => {
                   setFile(null);
                   setTitle('');
-                  setSelectedFormats({ visual: true, audio: true, quiz: true });
+                  setSelectedFormats({
+                    visual: {
+                      mindMap: true,
+                      charts: true,
+                      diagrams: true,
+                    },
+                    audio: true,
+                    quiz: true,
+                  });
                 }}
                 disabled={loading}
                 className="btn-secondary flex-1"

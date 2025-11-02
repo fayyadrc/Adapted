@@ -1,39 +1,58 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 
 export default function Results() {
   const { id } = useParams();
+  const location = useLocation();
+  const title = location.state?.title;
+  const selectedFormats = location.state?.selectedFormats;
   const [bookmarked, setBookmarked] = useState(false);
-  const [activeTab, setActiveTab] = useState('visual');
+  const [activeTab, setActiveTab] = useState(Object.keys(result.formats)[0]);
   const [savedItems, setSavedItems] = useState([]);
 
   // Mock data - replace with real API data
-  const result = {
-    id: id || '1',
-    title: 'Biology Chapter 3 - Photosynthesis',
-    uploadDate: '2024-11-01',
-    status: 'completed',
-    formats: {
-      visual: {
-        type: 'Mind Map',
-        description: 'Interactive mind map showing the photosynthesis process',
-        content: 'Light Reactions → Calvin Cycle → Glucose Production',
-        icon: '🗺️'
-      },
-      audio: {
-        type: 'Podcast Narration',
-        description: 'Professional narration of your content',
-        duration: '8:45',
-        icon: '🎙️'
-      },
-      quiz: {
-        type: 'Interactive Quiz',
-        description: 'Test your understanding with AI-generated questions',
-        questionCount: 12,
-        icon: '❓'
-      }
+  const allFormats = {
+    visual: {
+      type: 'Mind Map',
+      description: 'Interactive mind map showing the photosynthesis process',
+      content: 'Light Reactions → Calvin Cycle → Glucose Production',
+      icon: '🗺️'
+    },
+    audio: {
+      type: 'Podcast Narration',
+      description: 'Professional narration of your content',
+      duration: '8:45',
+      icon: '🎙️'
+    },
+    quiz: {
+      type: 'Interactive Quiz',
+      description: 'Test your understanding with AI-generated questions',
+      questionCount: 12,
+      icon: '❓'
     }
   };
+
+  const result = {
+    id: id || '1',
+    title: title || 'Biology Chapter 3 - Photosynthesis',
+    uploadDate: '2024-11-01',
+    status: 'completed',
+    formats: {}
+  };
+
+  if (selectedFormats) {
+    if (selectedFormats.visual && Object.values(selectedFormats.visual).some(Boolean)) {
+      result.formats.visual = allFormats.visual;
+    }
+    if (selectedFormats.audio) {
+      result.formats.audio = allFormats.audio;
+    }
+    if (selectedFormats.quiz) {
+      result.formats.quiz = allFormats.quiz;
+    }
+  } else {
+    result.formats = allFormats;
+  }
 
   const handleBookmark = () => {
     setBookmarked(!bookmarked);
@@ -98,7 +117,7 @@ export default function Results() {
         {/* Tabs Navigation */}
         <div className="border-b border-gray-200 mb-4">
           <div className="flex space-x-8">
-            {['visual', 'audio', 'quiz'].map(format => (
+            {Object.keys(result.formats).map(format => (
               <button
                 key={format}
                 onClick={() => setActiveTab(format)}
@@ -141,12 +160,20 @@ export default function Results() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDownload('visual')}
-                    className="btn-primary w-full"
-                  >
-                    Download Mind Map
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleDownload('visual')}
+                      className="btn-secondary flex-1"
+                    >
+                      Download
+                    </button>
+                    <button
+                      onClick={() => console.log('Full screen functionality to be implemented')}
+                      className="btn-primary flex-1"
+                    >
+                      Full Screen
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -224,30 +251,6 @@ export default function Results() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            {/* Quick Stats */}
-            <div className="card mb-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Summary</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Format Type</p>
-                  <p className="font-semibold text-gray-900">{result.formats[activeTab].type}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Status</p>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                    <p className="font-semibold text-gray-900">Ready to use</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Created</p>
-                  <p className="font-semibold text-gray-900">
-                    {new Date(result.uploadDate).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {/* Actions */}
             <div className="card mb-4">
               <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
@@ -267,31 +270,7 @@ export default function Results() {
               </div>
             </div>
 
-            {/* All Available Formats - Compact Version */}
-            <div className="card">
-              <h3 className="font-semibold text-gray-900 mb-3">Available Formats</h3>
-              <div className="space-y-2">
-                {Object.entries(result.formats).map(([key, format]) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={`w-full p-3 text-left rounded-lg border transition-all ${
-                      activeTab === key 
-                        ? 'border-purple-600 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <span className="text-2xl flex-shrink-0">{format.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm mb-1">{format.type}</h4>
-                        <p className="text-xs text-gray-500 leading-relaxed break-words">{format.description}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+
 
             {/* Bookmarked Indicator */}
             {bookmarked && (
