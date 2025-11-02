@@ -6,7 +6,7 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Upload from './components/Upload';
 import Results from './components/Results';
-import ResultDetail from './components/ResultDetail';
+import ResultDetailNew from './components/ResultDetailNew';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import './App.css';
@@ -65,7 +65,7 @@ function App() {
             path="/results/:id"
             element={
               <ProtectedRoute>
-                <ResultDetail />
+                <ResultDetailNew />
               </ProtectedRoute>
             }
           />
