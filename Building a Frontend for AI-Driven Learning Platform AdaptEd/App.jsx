@@ -10,12 +10,8 @@ import Assessment from './components/Assessment';
 import './App.css';
 
 function App() {
-  // FOR TESTING: Start in logged-in state to bypass disabled login
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [user, setUser] = useState({ 
-    email: 'test@example.com', 
-    name: 'Test User' 
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
 
   const handleLogin = (userData) => {
     setUser(userData);
