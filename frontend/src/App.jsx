@@ -6,6 +6,7 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Upload from './components/Upload';
 import Results from './components/Results';
+import ResultDetail from './components/ResultDetail';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import './App.css';
@@ -64,7 +65,7 @@ function App() {
             path="/results/:id"
             element={
               <ProtectedRoute>
-                <Results />
+                <ResultDetail />
               </ProtectedRoute>
             }
           />
@@ -92,8 +93,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* Default redirect */}
           <Route path="/" element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} />} />
         </Routes>
       </div>

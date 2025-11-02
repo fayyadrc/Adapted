@@ -42,11 +42,13 @@ const MindMapViewer = ({ mindMapData }) => {
   React.useEffect(() => {
     if (!mindMapData || !mindMapData.root) return;
 
+    let nodeCounter = 0; // Ensure unique IDs
+
     const convertToNodes = (node, level = 0, parentId = null, x = 0, y = 0) => {
       const nodes = [];
       const edges = [];
       
-      const nodeId = `${node.topic}-${level}-${x}-${y}`;
+      const nodeId = `node-${nodeCounter++}`;
       
       // Create the node
       nodes.push({
@@ -65,7 +67,7 @@ const MindMapViewer = ({ mindMapData }) => {
       // Create edge from parent if this isn't the root
       if (parentId) {
         edges.push({
-          id: `${parentId}-${nodeId}`,
+          id: `edge-${parentId}-${nodeId}`,
           source: parentId,
           target: nodeId,
           type: 'smoothstep',

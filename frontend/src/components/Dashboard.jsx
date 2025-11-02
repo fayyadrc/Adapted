@@ -16,6 +16,13 @@ export default function Dashboard({ user }) {
       uploadDate: '2024-10-30',
       status: 'processing',
       formats: []
+    },
+    {
+      id: 2,
+      title: 'Computer Science Notes',
+      uploadDate: '2024-10-2',
+      status: 'completed',
+      formats: ['visual', 'summary']
     }
   ]);
 
