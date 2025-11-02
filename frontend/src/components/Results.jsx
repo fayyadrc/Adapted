@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 
 export default function Results() {
@@ -6,17 +6,19 @@ export default function Results() {
   const location = useLocation();
   const title = location.state?.title;
   const selectedFormats = location.state?.selectedFormats;
-  const [bookmarked, setBookmarked] = useState(false);
-  const [activeTab, setActiveTab] = useState(Object.keys(result.formats)[0]);
-  const [savedItems, setSavedItems] = useState([]);
 
   // Mock data - replace with real API data
   const allFormats = {
-    visual: {
+    mindmap: {
       type: 'Mind Map',
       description: 'Interactive mind map showing the photosynthesis process',
       content: 'Light Reactions → Calvin Cycle → Glucose Production',
       icon: '🗺️'
+    },
+    summary: {
+      type: 'Summary',
+      description: 'Concise summary of your content',
+      icon: '📄'
     },
     audio: {
       type: 'Podcast Narration',
@@ -42,7 +44,8 @@ export default function Results() {
 
   if (selectedFormats) {
     if (selectedFormats.visual && Object.values(selectedFormats.visual).some(Boolean)) {
-      result.formats.visual = allFormats.visual;
+      result.formats.mindmap = allFormats.mindmap;
+      result.formats.summary = allFormats.summary;
     }
     if (selectedFormats.audio) {
       result.formats.audio = allFormats.audio;
@@ -53,6 +56,17 @@ export default function Results() {
   } else {
     result.formats = allFormats;
   }
+
+  const [bookmarked, setBookmarked] = useState(false);
+  const [activeTab, setActiveTab] = useState('');
+  const [savedItems, setSavedItems] = useState([]);
+
+  useEffect(() => {
+    const formatKeys = Object.keys(result.formats);
+    if (formatKeys.length > 0) {
+      setActiveTab(formatKeys[0]);
+    }
+  }, [location.state]);
 
   const handleBookmark = () => {
     setBookmarked(!bookmarked);
@@ -139,13 +153,13 @@ export default function Results() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             <div className="card">
-              {activeTab === 'visual' && (
+              {activeTab === 'mindmap' && (
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {result.formats.visual.type}
+                    {result.formats.mindmap.type}
                   </h2>
                   <p className="text-gray-600 mb-4">
-                    {result.formats.visual.description}
+                    {result.formats.mindmap.description}
                   </p>
 
                   {/* Mock Visual Content */}
@@ -153,7 +167,7 @@ export default function Results() {
                     <div className="text-center">
                       <div className="text-4xl mb-3">🗺️</div>
                       <p className="text-gray-700 font-semibold mb-2">Mind Map Preview</p>
-                      <p className="text-gray-600 text-sm">{result.formats.visual.content}</p>
+                      <p className="text-gray-600 text-sm">{result.formats.mindmap.content}</p>
                       <div className="mt-4 text-xs text-gray-500">
                         Interactive mind map will be displayed here
                       </div>
@@ -162,7 +176,7 @@ export default function Results() {
 
                   <div className="flex gap-4">
                     <button
-                      onClick={() => handleDownload('visual')}
+                      onClick={() => handleDownload('mindmap')}
                       className="btn-secondary flex-1"
                     >
                       Download
@@ -177,6 +191,48 @@ export default function Results() {
                 </div>
               )}
 
+              {activeTab === 'summary' && (
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-3">
+                    {result.formats.summary.type}
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    {result.formats.summary.description}
+                  </p>
+
+                  {/* Mock Summary Content */}
+                  <div className="bg-white rounded-lg p-6 mb-4 border border-gray-200">
+                    <div className="prose max-w-none">
+                      <h3 className="text-lg font-semibold mb-3">Key Points</h3>
+                      <ul className="space-y-2 text-gray-700">
+                        <li>Photosynthesis is the process by which plants convert light energy into chemical energy</li>
+                        <li>The process occurs in two main stages: light reactions and the Calvin cycle</li>
+                        <li>Light reactions take place in the thylakoid membranes and produce ATP and NADPH</li>
+                        <li>The Calvin cycle uses ATP and NADPH to fix carbon dioxide into glucose</li>
+                      </ul>
+                      <div className="mt-4 text-xs text-gray-500">
+                        AI-generated summary will be displayed here
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleDownload('summary')}
+                      className="btn-secondary flex-1"
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => console.log('Copy functionality to be implemented')}
+                      className="btn-primary flex-1"
+                    >
+                      Copy Text
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'audio' && (
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-3">
@@ -186,30 +242,37 @@ export default function Results() {
                     {result.formats.audio.description}
                   </p>
 
-                  {/* Mock Audio Player */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 mb-4 h-48 flex items-center justify-center">
-                    <div className="w-full max-w-md">
-                      <div className="flex items-center justify-center space-x-4 mb-4">
-                        <button className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition-colors">
-                          <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </button>
+                  {/* Mock Audio Content */}
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 mb-4">
+                    <div className="text-center">
+                      <div className="text-4xl mb-3">🎙️</div>
+                      <p className="text-gray-700 font-semibold mb-2">Audio Narration</p>
+                      <p className="text-gray-600 text-sm">Duration: {result.formats.audio.duration}</p>
+                      <div className="mt-4">
+                        <div className="bg-white rounded-full h-2 overflow-hidden">
+                          <div className="bg-purple-600 h-full w-0"></div>
+                        </div>
                       </div>
-                      <div className="bg-gray-300 h-2 rounded-full mb-2"></div>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>0:00</span>
-                        <span>{result.formats.audio.duration}</span>
+                      <div className="mt-4 text-xs text-gray-500">
+                        Audio player will be displayed here
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDownload('audio')}
-                    className="btn-primary w-full"
-                  >
-                    Download Audio (MP3)
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleDownload('audio')}
+                      className="btn-secondary flex-1"
+                    >
+                      Download MP3
+                    </button>
+                    <button
+                      onClick={() => console.log('Play functionality to be implemented')}
+                      className="btn-primary flex-1"
+                    >
+                      Play
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -222,28 +285,32 @@ export default function Results() {
                     {result.formats.quiz.description}
                   </p>
 
-                  {/* Mock Quiz Preview */}
-                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 mb-4 h-48 overflow-y-auto">
-                    <div className="bg-white p-3 rounded-lg border border-gray-200">
-                      <p className="font-semibold text-gray-900 mb-2 text-sm">Question 1 of {result.formats.quiz.questionCount}</p>
-                      <p className="text-gray-700 mb-3 text-sm">What is the primary purpose of photosynthesis?</p>
-                      <div className="space-y-1">
-                        {['To produce glucose', 'To absorb sunlight', 'To release oxygen', 'All of the above'].map((option, idx) => (
-                          <label key={idx} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="radio" name="answer" className="w-3 h-3" />
-                            <span className="text-gray-700 text-sm">{option}</span>
-                          </label>
-                        ))}
+                  {/* Mock Quiz Content */}
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 mb-4">
+                    <div className="text-center">
+                      <div className="text-4xl mb-3">❓</div>
+                      <p className="text-gray-700 font-semibold mb-2">Interactive Quiz</p>
+                      <p className="text-gray-600 text-sm">{result.formats.quiz.questionCount} Questions</p>
+                      <div className="mt-4 text-xs text-gray-500">
+                        Quiz interface will be displayed here
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDownload('quiz')}
-                    className="btn-primary w-full"
-                  >
-                    Start Quiz
-                  </button>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleDownload('quiz')}
+                      className="btn-secondary flex-1"
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => console.log('Start quiz functionality to be implemented')}
+                      className="btn-primary flex-1"
+                    >
+                      Start Quiz
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -251,37 +318,41 @@ export default function Results() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            {/* Actions */}
             <div className="card mb-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
               <div className="space-y-2">
-                <Link
-                  to="/upload"
-                  className="btn-secondary w-full text-center block"
+                <button
+                  onClick={() => handleDownload('all')}
+                  className="w-full btn-secondary text-sm"
                 >
-                  Upload New Content
-                </Link>
+                  Download All Formats
+                </button>
                 <Link
                   to="/dashboard"
-                  className="btn-secondary w-full text-center block"
+                  className="block w-full btn-secondary text-sm text-center"
                 >
                   Back to Dashboard
                 </Link>
               </div>
             </div>
 
-
-
-            {/* Bookmarked Indicator */}
-            {bookmarked && (
-              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
-                <p className="text-sm text-purple-700">
-                  <span className="font-semibold">✓ Bookmarked</span>
-                  <br />
-                  Added to your saved items
-                </p>
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Details</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Upload Date:</span>
+                  <span className="font-medium">{new Date(result.uploadDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <span className="font-medium text-green-600">Completed</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Formats:</span>
+                  <span className="font-medium">{Object.keys(result.formats).length}</span>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

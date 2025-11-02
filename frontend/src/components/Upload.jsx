@@ -134,12 +134,22 @@ export default function Upload() {
         Object.keys(selectedFormats).filter(key => selectedFormats[key])
       ));
 
+      const isVisualFormatSelected =
+        typeof selectedFormats.visual === 'object' &&
+        Object.values(selectedFormats.visual).some(Boolean);
+
+      const formatsToSend = {
+        visual: isVisualFormatSelected,
+        audio: selectedFormats.audio,
+        quiz: selectedFormats.quiz,
+      };
+
       // Simulate API request
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Mock success response
       const uploadId = Math.random().toString(36).substr(2, 9);
-      navigate(`/results/${uploadId}`, { state: { title: title, selectedFormats: selectedFormats } });
+      navigate(`/results/${uploadId}`, { state: { title: title, selectedFormats: formatsToSend } });
     } catch (err) {
       setError('Upload failed. Please try again.');
     } finally {
