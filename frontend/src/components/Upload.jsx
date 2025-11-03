@@ -136,6 +136,7 @@ export default function Upload() {
       const data = await response.json();
       const enrichedResult = {
         ...data,
+        id: data?.id || `local-${Date.now()}`,
         uploadedAt: new Date().toISOString(),
       };
       setGeneratedResult(enrichedResult); // (Q1)

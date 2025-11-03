@@ -1,4 +1,5 @@
 import json
+import uuid
 from flask import Blueprint, request, jsonify
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text
@@ -43,7 +44,7 @@ def upload_and_process():
 
     # Generate the requested formats
     results = {
-        "id": hash(text_content) % 1000000,  # Generate a simple ID
+        "id": str(uuid.uuid4()),
         "title": title,
         "status": "completed",
         "formats": {}
@@ -119,7 +120,7 @@ def upload_and_process():
     return jsonify(results), 200
 
 
-@upload_bp.route('/results/<int:result_id>')
+@upload_bp.route('/results/<result_id>')
 def get_results(result_id):
     """
     Get results by ID (for now, return mock data as we're not storing in DB)
