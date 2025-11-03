@@ -1,10 +1,15 @@
 import json
 import uuid
+import traceback
 from flask import Blueprint, request, jsonify
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text
 
 upload_bp = Blueprint('upload', __name__)
+
+# --- In-memory data store (for demonstration purposes) ---
+# In a production environment, you would use a database (e.g., Redis, PostgreSQL)
+results_store = {}
 
 @upload_bp.route('/upload', methods=['POST'])
 def upload_and_process():
@@ -117,41 +122,20 @@ def upload_and_process():
                 "icon": "❓"
             }
 
+    # --- Store the results in our in-memory store ---
+    results_store[results["id"]] = results
+
     return jsonify(results), 200
 
 
 @upload_bp.route('/results/<result_id>')
 def get_results(result_id):
     """
-    Get results by ID (for now, return mock data as we're not storing in DB)
-    In production, you'd fetch this from your database
+    Get results by ID from the in-memory store.
     """
-    # Mock data for demonstration
-    mock_result = {
-        "id": result_id,
-        "title": "Biology Chapter 3 - Photosynthesis",
-        "uploadDate": "2024-11-01",
-        "status": "completed",
-        "formats": {
-            "visual": {
-                "type": "Mind Map",
-                "description": "Interactive mind map showing the photosynthesis process",
-                "content": "Light Reactions → Calvin Cycle → Glucose Production",
-                "icon": "🗺️"
-            },
-            "audio": {
-                "type": "Podcast Narration", 
-                "description": "Professional narration of your content",
-                "duration": "8:45",
-                "icon": "🎙️"
-            },
-            "quiz": {
-                "type": "Interactive Quiz",
-                "description": "Test your understanding with AI-generated questions",
-                "questionCount": 12,
-                "icon": "❓"
-            }
-        }
-    }
+    result = results_store.get(result_id)
     
-    return jsonify(mock_result), 200
+    if result is None:
+        return jsonify({"error": "Result not found"}), 404
+
+    return jsonify(result), 200
