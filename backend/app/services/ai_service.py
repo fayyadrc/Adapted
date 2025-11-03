@@ -71,7 +71,7 @@ def generate_mindmap_from_text(text_content):
             "children": [
                 {{
                     "topic": "Core Concept",
-                    "summary": "optional detailed summary string (e.g., key points from the text).",
+                    "summary": "o`ptional detailed summary string (e.g., key points from the text).",
                     "definition": "optional short, single-sentence definition string for key terms.",
                     "children": [
                         {{

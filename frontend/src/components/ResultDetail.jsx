@@ -1,338 +1,266 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
+import MindMapViewer from './MindMapViewer';
+
+const LAST_RESULT_STORAGE_KEY = 'adapted:last-result';
+
+const formatRelativeTime = (iso) => {
+  if (!iso) return 'just now';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'just now';
+
+  const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const divisions = [
+    { amount: 60 * 60 * 24 * 365, unit: 'year' },
+    { amount: 60 * 60 * 24 * 30, unit: 'month' },
+    { amount: 60 * 60 * 24 * 7, unit: 'week' },
+    { amount: 60 * 60 * 24, unit: 'day' },
+    { amount: 60 * 60, unit: 'hour' },
+    { amount: 60, unit: 'minute' },
+    { amount: 1, unit: 'second' },
+  ];
+
+  if (typeof Intl !== 'undefined' && typeof Intl.RelativeTimeFormat === 'function') {
+    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    for (const division of divisions) {
+      if (Math.abs(diffSeconds) >= division.amount || division.unit === 'second') {
+        const value = Math.round(diffSeconds / division.amount);
+        return rtf.format(value, division.unit);
+      }
+    }
+  }
+
+  const absSeconds = Math.abs(diffSeconds);
+  if (absSeconds < 60) return 'just now';
+  if (absSeconds < 3600) return `${Math.round(absSeconds / 60)} minute(s) ago`;
+  if (absSeconds < 86400) return `${Math.round(absSeconds / 3600)} hour(s) ago`;
+  if (absSeconds < 604800) return `${Math.round(absSeconds / 86400)} day(s) ago`;
+  return date.toLocaleDateString();
+};
+
+const formatAbsoluteDate = (iso) => {
+  if (!iso) return 'Not available';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
+const loadCachedResult = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = window.sessionStorage.getItem(LAST_RESULT_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Unable to parse cached result payload', err);
+    return null;
+  }
+};
+
+const persistResult = (payload) => {
+  if (typeof window === 'undefined' || !payload) return;
+  try {
+    window.sessionStorage.setItem(LAST_RESULT_STORAGE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Unable to persist result payload', err);
+  }
+};
 
 export default function ResultDetail() {
   const { id } = useParams();
   const location = useLocation();
-  const title = location.state?.title;
-  const selectedFormats = location.state?.selectedFormats;
+  const viewerRef = useRef(null);
 
-  // Mock data - replace with real API data
-  const allFormats = {
-    mindmap: {
-      type: 'Mind Map',
-      description: 'Interactive mind map showing the photosynthesis process',
-      content: 'Light Reactions → Calvin Cycle → Glucose Production',
-      icon: '🗺️'
-    },
-    summary: {
-      type: 'Summary',
-      description: 'Concise summary of your content',
-      icon: '📄'
-    },
-    audio: {
-      type: 'Podcast Narration',
-      description: 'Professional narration of your content',
-      duration: '8:45',
-      icon: '🎙️'
-    },
-    quiz: {
-      type: 'Interactive Quiz',
-      description: 'Test your understanding with AI-generated questions',
-      questionCount: 12,
-      icon: '❓'
-    }
-  };
-
-  const result = {
-    id: id || '1',
-    title: title || 'Biology Chapter 3 - Photosynthesis',
-    uploadDate: '2024-11-01',
-    status: 'completed',
-    formats: {}
-  };
-
-  if (selectedFormats) {
-    if (selectedFormats.visual && Object.values(selectedFormats.visual).some(Boolean)) {
-      result.formats.mindmap = allFormats.mindmap;
-      result.formats.summary = allFormats.summary;
-    }
-    if (selectedFormats.audio) {
-      result.formats.audio = allFormats.audio;
-    }
-    if (selectedFormats.quiz) {
-      result.formats.quiz = allFormats.quiz;
-    }
-  } else {
-    result.formats = allFormats;
-  }
-
+  const [result, setResult] = useState(() => {
+    if (location.state) return location.state;
+    return loadCachedResult();
+  });
   const [bookmarked, setBookmarked] = useState(false);
-  const [activeTab, setActiveTab] = useState('');
-  const [savedItems, setSavedItems] = useState([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(true);
+  const [shareStatus, setShareStatus] = useState('');
 
   useEffect(() => {
-    const formatKeys = Object.keys(result.formats);
-    if (formatKeys.length > 0) {
-      setActiveTab(formatKeys[0]);
+    if (location.state) {
+      setResult(location.state);
+      persistResult(location.state);
     }
   }, [location.state]);
 
+  const visualFormat = result?.formats?.visual;
+
+  const relativeUploadTime = useMemo(
+    () => formatRelativeTime(result?.uploadedAt || result?.uploadDate),
+    [result?.uploadedAt, result?.uploadDate]
+  );
+
+  const absoluteUploadTime = useMemo(
+    () => formatAbsoluteDate(result?.uploadedAt || result?.uploadDate),
+    [result?.uploadedAt, result?.uploadDate]
+  );
+
   const handleBookmark = () => {
-    setBookmarked(!bookmarked);
-    if (!bookmarked) {
-      setSavedItems([...savedItems, result.id]);
-    } else {
-      setSavedItems(savedItems.filter(item => item !== result.id));
+    setBookmarked((prev) => !prev);
+  };
+
+  const handleDownloadMindMap = () => {
+    viewerRef.current?.downloadMindMap?.();
+  };
+
+  const handleOpenFullscreen = () => {
+    viewerRef.current?.openFullscreen?.();
+  };
+
+  const handleShare = async () => {
+    const shareLink = typeof window !== 'undefined' ? window.location.href : '';
+    try {
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+        setShareStatus('Link copied!');
+        setTimeout(() => setShareStatus(''), 2000);
+      } else {
+        throw new Error('Clipboard API not available');
+      }
+    } catch (error) {
+      console.warn('Clipboard write failed', error);
+      setShareStatus('Unable to copy link');
+      setTimeout(() => setShareStatus(''), 2000);
     }
   };
 
-  const handleDownload = (format) => {
-    // Mock download functionality
-    console.log(`Downloading ${format} for ${result.id}`);
-    alert(`Downloaded ${format} format!`);
+  const handleResetView = () => {
+    viewerRef.current?.resetView?.();
   };
 
-  const handleShare = () => {
-    // Mock share functionality
-    console.log(`Sharing result ${result.id}`);
-    alert('Share link copied to clipboard!');
-  };
+  if (!result || !visualFormat) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">No generated mind map yet</h1>
+          <p className="text-gray-600">
+            Upload a document and generate a mind map to see it here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const resultTitle = result?.title || 'Generated Mind Map';
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header with Bookmark */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">{result.title}</h1>
-            <p className="text-gray-600 text-sm">
-              Uploaded {new Date(result.uploadDate).toLocaleDateString()} • Status: <span className="text-green-600 font-semibold">Completed</span>
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">{resultTitle}</h1>
+            <p className="text-sm text-gray-600">Uploaded {relativeUploadTime}</p>
           </div>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={handleBookmark}
-              className={`p-2 rounded-lg transition-colors ${
-                bookmarked
-                  ? 'bg-purple-100 text-purple-600'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title="Bookmark this result"
-            >
-              <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-            </button>
-            
-            <button
-              onClick={handleShare}
-              className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-              title="Share this result"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.589 12.938 10 12.502 10 12c0-.502-.411-.938-1.316-1.342m0 2.684a3 3 0 110-2.684m9.032-6.674l-9.032 4.026m0 7.288l9.032-4.026M5.106 18.894l7.572-4.297m0-6.882l-7.572 4.297" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs Navigation */}
-        <div className="border-b border-gray-200 mb-4">
-          <div className="flex space-x-8">
-            {Object.keys(result.formats).map(format => (
+          <div className="flex flex-col items-end gap-2">
+            {shareStatus && (
+              <span className="px-3 py-1 text-xs font-semibold text-purple-600 bg-purple-100 rounded-full">
+                {shareStatus}
+              </span>
+            )}
+            <div className="flex gap-2">
               <button
-                key={format}
-                onClick={() => setActiveTab(format)}
-                className={`py-3 px-2 font-medium transition-colors border-b-2 ${
-                  activeTab === format
-                    ? 'text-purple-600 border-purple-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                onClick={handleBookmark}
+                className={`p-2 rounded-lg transition-colors ${
+                  bookmarked
+                    ? 'bg-purple-100 text-purple-600'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
+                title="Bookmark this result"
               >
-                <span className="mr-2">{result.formats[format].icon}</span>
-                {format.charAt(0).toUpperCase() + format.slice(1)}
+                <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
               </button>
-            ))}
+              <button
+                onClick={handleShare}
+                className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                title="Share this result"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.589 12.938 10 12.502 10 12c0-.502-.411-.938-1.316-1.342m0 2.684a3 3 0 110-2.684m9.032-6.674l-9.032 4.026m0 7.288l9.032-4.026M5.106 18.894l7.572-4.297m0-6.882l-7.572 4.297" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
+          <div className="space-y-6">
             <div className="card">
-              {activeTab === 'mindmap' && (
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {result.formats.mindmap.type}
-                  </h2>
-                  <p className="text-gray-600 mb-4">
-                    {result.formats.mindmap.description}
+                  <h2 className="text-xl font-semibold text-gray-900">{visualFormat?.type || 'Mind Map'}</h2>
+                  <p className="text-sm text-gray-600">
+                    {visualFormat?.description || 'Explore concepts and relationships extracted from your upload.'}
                   </p>
+                </div>
+                <button
+                  onClick={() => setIsPreviewOpen((prev) => !prev)}
+                  className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition"
+                >
+                  {isPreviewOpen ? 'Collapse' : 'Expand'}
+                </button>
+              </div>
 
-                  {/* Mock Visual Content */}
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 mb-4 h-48 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-4xl mb-3">🗺️</div>
-                      <p className="text-gray-700 font-semibold mb-2">Mind Map Preview</p>
-                      <p className="text-gray-600 text-sm">{result.formats.mindmap.content}</p>
-                      <div className="mt-4 text-xs text-gray-500">
-                        Interactive mind map will be displayed here
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleDownload('mindmap')}
-                      className="btn-secondary flex-1"
-                    >
-                      Download
-                    </button>
-                    <button
-                      onClick={() => console.log('Full screen functionality to be implemented')}
-                      className="btn-primary flex-1"
-                    >
-                      Full Screen
-                    </button>
-                  </div>
+              {visualFormat?.error && (
+                <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {visualFormat.error}
                 </div>
               )}
 
-              {activeTab === 'summary' && (
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {result.formats.summary.type}
-                  </h2>
-                  <p className="text-gray-600 mb-4">
-                    {result.formats.summary.description}
-                  </p>
-
-                  {/* Mock Summary Content */}
-                  <div className="bg-white rounded-lg p-6 mb-4 border border-gray-200">
-                    <div className="prose max-w-none">
-                      <h3 className="text-lg font-semibold mb-3">Key Points</h3>
-                      <ul className="space-y-2 text-gray-700">
-                        <li>Photosynthesis is the process by which plants convert light energy into chemical energy</li>
-                        <li>The process occurs in two main stages: light reactions and the Calvin cycle</li>
-                        <li>Light reactions take place in the thylakoid membranes and produce ATP and NADPH</li>
-                        <li>The Calvin cycle uses ATP and NADPH to fix carbon dioxide into glucose</li>
-                      </ul>
-                      <div className="mt-4 text-xs text-gray-500">
-                        AI-generated summary will be displayed here
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleDownload('summary')}
-                      className="btn-secondary flex-1"
-                    >
-                      Download PDF
-                    </button>
-                    <button
-                      onClick={() => console.log('Copy functionality to be implemented')}
-                      className="btn-primary flex-1"
-                    >
-                      Copy Text
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'audio' && (
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {result.formats.audio.type}
-                  </h2>
-                  <p className="text-gray-600 mb-4">
-                    {result.formats.audio.description}
-                  </p>
-
-                  {/* Mock Audio Content */}
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 mb-4">
-                    <div className="text-center">
-                      <div className="text-4xl mb-3">🎙️</div>
-                      <p className="text-gray-700 font-semibold mb-2">Audio Narration</p>
-                      <p className="text-gray-600 text-sm">Duration: {result.formats.audio.duration}</p>
-                      <div className="mt-4">
-                        <div className="bg-white rounded-full h-2 overflow-hidden">
-                          <div className="bg-purple-600 h-full w-0"></div>
+              {!visualFormat?.error && (
+                <div className="mt-6">
+                  {isPreviewOpen ? (
+                    visualFormat?.data ? (
+                      <>
+                        <MindMapViewer ref={viewerRef} mindMapData={visualFormat.data} />
+                        <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500">
+                          <button
+                            onClick={handleResetView}
+                            className="text-purple-600 font-medium hover:text-purple-700"
+                          >
+                            Re-center view
+                          </button>
+                          <span>Need more space? Use fullscreen mode from the controls.</span>
                         </div>
+                      </>
+                    ) : (
+                      <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
+                        Mind map is still processing. Check back shortly.
                       </div>
-                      <div className="mt-4 text-xs text-gray-500">
-                        Audio player will be displayed here
-                      </div>
+                    )
+                  ) : (
+                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-500">
+                      Preview hidden. Select “Expand” to view the generated mind map.
                     </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleDownload('audio')}
-                      className="btn-secondary flex-1"
-                    >
-                      Download MP3
-                    </button>
-                    <button
-                      onClick={() => console.log('Play functionality to be implemented')}
-                      className="btn-primary flex-1"
-                    >
-                      Play
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'quiz' && (
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-3">
-                    {result.formats.quiz.type}
-                  </h2>
-                  <p className="text-gray-600 mb-4">
-                    {result.formats.quiz.description}
-                  </p>
-
-                  {/* Mock Quiz Content */}
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 mb-4">
-                    <div className="text-center">
-                      <div className="text-4xl mb-3">❓</div>
-                      <p className="text-gray-700 font-semibold mb-2">Interactive Quiz</p>
-                      <p className="text-gray-600 text-sm">{result.formats.quiz.questionCount} Questions</p>
-                      <div className="mt-4 text-xs text-gray-500">
-                        Quiz interface will be displayed here
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleDownload('quiz')}
-                      className="btn-secondary flex-1"
-                    >
-                      Download PDF
-                    </button>
-                    <button
-                      onClick={() => console.log('Start quiz functionality to be implemented')}
-                      className="btn-primary flex-1"
-                    >
-                      Start Quiz
-                    </button>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="card mb-4">
+          <div className="space-y-6 lg:sticky lg:top-6">
+            <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
               <div className="space-y-2">
                 <button
-                  onClick={() => handleDownload('all')}
+                  onClick={handleDownloadMindMap}
                   className="w-full btn-secondary text-sm"
                 >
-                  Download All Formats
+                  Download Mind Map
                 </button>
-                <Link
-                  to="/results"
-                  className="block w-full btn-secondary text-sm text-center"
+                <button
+                  onClick={handleOpenFullscreen}
+                  className="w-full btn-secondary text-sm"
                 >
-                  Back to Results
-                </Link>
+                  View Fullscreen
+                </button>
               </div>
             </div>
 
@@ -340,16 +268,21 @@ export default function ResultDetail() {
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Details</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Upload Date:</span>
-                  <span className="font-medium">{new Date(result.uploadDate).toLocaleDateString()}</span>
+                  <span className="text-gray-600">Result ID:</span>
+                  <span className="font-medium text-gray-900">{result?.id || id || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <span className="font-medium text-green-600">Completed</span>
+                  <span className="text-gray-600">Uploaded:</span>
+                  <span className="font-medium text-gray-900 text-right">{absoluteUploadTime}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Formats:</span>
-                  <span className="font-medium">{Object.keys(result.formats).length}</span>
+                  <span className="text-gray-600">File Name:</span>
+                  <span
+                    className="font-medium text-gray-900 max-w-[200px] truncate text-right"
+                    title={resultTitle}
+                  >
+                    {resultTitle}
+                  </span>
                 </div>
               </div>
             </div>
