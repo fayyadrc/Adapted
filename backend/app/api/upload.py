@@ -16,6 +16,8 @@ def upload_and_process():
     """
     Unified upload endpoint that processes files and generates requested formats
     """
+    print("=== UPLOAD ENDPOINT CALLED ===")
+    
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
     
@@ -28,10 +30,15 @@ def upload_and_process():
     title = request.form.get('title', file.filename)
     formats = request.form.get('formats', '["visual", "audio", "quiz"]')
     
+    print(f"Title: {title}")
+    print(f"Formats string: {formats}")
+    
     try:
         requested_formats = json.loads(formats)
+        print(f"Requested formats parsed: {requested_formats}")
     except json.JSONDecodeError:
         requested_formats = ["visual", "audio", "quiz"]
+        print(f"JSON decode error, using defaults: {requested_formats}")
 
     # Extract text from the uploaded file
     text_content = ""
@@ -57,23 +64,30 @@ def upload_and_process():
 
     # Generate visual format (mind map)
     if "visual" in requested_formats:
+        print("=== Generating VISUAL format ===")
         try:
             mindmap_json_string = generate_mindmap_from_text(text_content)
+            print(f"Mind map JSON string: {mindmap_json_string[:200]}...")
             mindmap_data = json.loads(mindmap_json_string)
+            print(f"Mind map data parsed successfully")
             results["formats"]["visual"] = {
                 "type": "Mind Map",
                 "description": "Interactive mind map showing key concepts and relationships",
                 "data": mindmap_data,
                 "icon": "🗺️"
             }
+            print(f"Visual format added to results")
         except Exception as e:
             print(f"Error generating mind map: {e}")
+            traceback.print_exc()
             results["formats"]["visual"] = {
                 "type": "Mind Map",
                 "description": "Error generating mind map",
                 "error": str(e),
                 "icon": "🗺️"
             }
+    else:
+        print(f"Visual NOT in requested formats: {requested_formats}")
 
     # Generate audio format (summary for TTS)
     if "audio" in requested_formats:
@@ -124,6 +138,11 @@ def upload_and_process():
 
     # --- Store the results in our in-memory store ---
     results_store[results["id"]] = results
+
+    print(f"=== FINAL RESULTS ===")
+    print(f"Results ID: {results['id']}")
+    print(f"Results formats keys: {list(results['formats'].keys())}")
+    print(f"Results: {json.dumps(results, indent=2)[:500]}...")
 
     return jsonify(results), 200
 

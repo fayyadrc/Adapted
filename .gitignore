@@ -13,13 +13,14 @@ __pycache__/
 # Environment files
 .env
 .env.*
+!.env.example
 
 # IDEs and system files
 .DS_Store
 .idea/
 .vscode/
 
-# Firebase service account (do not commit)
+# Firebase service account (deprecated - migrated to Supabase)
 /backend/serviceAccountKey.json
 
 # Logs

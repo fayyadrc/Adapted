@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { supabase } from '../supabaseConfig';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -10,11 +11,6 @@ export default function Login({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('Login is currently disabled for testing purposes.');
-    return;
-    
-    // DISABLED FOR TESTING - Previous login logic below:
-    /*
     setError('');
     setLoading(true);
 
@@ -26,16 +22,30 @@ export default function Login({ onLogin }) {
     }
 
     try {
-      // Simulate API call - accepts any email/password
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onLogin({ email, name: email.split('@')[0] });
-      navigate('/dashboard');
+      // Sign in with Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (data.user) {
+        // Store user info and navigate to dashboard
+        onLogin({ 
+          email: data.user.email, 
+          name: data.user.user_metadata?.name || email.split('@')[0],
+          id: data.user.id
+        });
+        navigate('/dashboard');
+      }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
-    */
   };
 
   return (

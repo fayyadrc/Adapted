@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { supabase } from '../supabaseConfig';
 
 export default function Signup({ onLogin }) {
   const [formData, setFormData] = useState({
@@ -22,12 +23,6 @@ export default function Signup({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('Sign up is currently disabled for testing purposes.');
-    setLoading(false);
-    return;
-    
-    // DISABLED FOR TESTING - Previous signup logic below:
-    /*
     setError('');
     setLoading(true);
 
@@ -51,16 +46,42 @@ export default function Signup({ onLogin }) {
     }
 
     try {
-      // Simulate API call - accepts any valid form data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onLogin({ email: formData.email, name: formData.name });
-      navigate('/dashboard');
+      // Sign up with Supabase
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+          }
+        }
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (data.user) {
+        // Check if email confirmation is required
+        if (data.user.identities && data.user.identities.length === 0) {
+          setError('This email is already registered. Please login instead.');
+          setLoading(false);
+          return;
+        }
+        
+        // Store user info and navigate to dashboard
+        onLogin({ 
+          email: data.user.email, 
+          name: formData.name,
+          id: data.user.id
+        });
+        navigate('/dashboard');
+      }
     } catch (err) {
-      setError('Sign up failed. Please try again.');
+      setError(err.message || 'Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
-    */
   };
 
   return (
