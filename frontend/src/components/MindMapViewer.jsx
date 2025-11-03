@@ -6,6 +6,7 @@ const escapeLabel = (value) => {
   return value
     .replace(/"/g, '\\"')
     .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\n/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -20,15 +21,21 @@ const buildMermaidMindmap = (root) => {
     const indent = '  '.repeat(level + 1);
     const nodeId = `n_${counter++}`;
 
-    const labelParts = [];
-    if (node.topic) labelParts.push(node.topic);
-    if (node.summary) labelParts.push(`Summary: ${node.summary}`);
-    if (node.definition) labelParts.push(`Definition: ${node.definition}`);
-
-    const label = labelParts.length > 0 ? labelParts.join(' - ') : 'Untitled';
+    const label = node.topic || 'Untitled';
     const className = level === 0 ? 'level0' : level === 1 ? 'level1' : level === 2 ? 'level2' : 'levelDefault';
-
     lines.push(`${indent}${nodeId}["${escapeLabel(label)}"]:::${className}`);
+
+    const childIndent = '  '.repeat(level + 2);
+
+    if (node.definition) {
+      const defId = `n_${counter++}`;
+      lines.push(`${childIndent}${defId}["${escapeLabel(node.definition)}"]:::levelDefault`);
+    }
+
+    if (node.summary) {
+      const summaryId = `n_${counter++}`;
+      lines.push(`${childIndent}${summaryId}["${escapeLabel(node.summary)}"]:::levelDefault`);
+    }
 
     if (node.children && node.children.length > 0) {
       node.children.forEach((child) => walk(child, level + 1));
