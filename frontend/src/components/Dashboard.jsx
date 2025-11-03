@@ -18,7 +18,7 @@ export default function Dashboard({ user }) {
       formats: []
     },
     {
-      id: 2,
+      id: 3,
       title: 'Computer Science Notes',
       uploadDate: '2024-10-2',
       status: 'completed',
