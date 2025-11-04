@@ -95,6 +95,7 @@ export default function ResultDetail() {
     return loadResultFromLocalStorage(id);
   });
   const [bookmarked, setBookmarked] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [shareStatus, setShareStatus] = useState('');
 
   useEffect(() => {
@@ -110,6 +111,8 @@ export default function ResultDetail() {
       }
     }
   }, [location.state, id, result]);
+
+  const visualFormat = result?.formats?.visual;
 
   const relativeUploadTime = useMemo(
     () => formatRelativeTime(result?.uploadedAt || result?.uploadDate),
@@ -216,192 +219,99 @@ export default function ResultDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
           <div className="space-y-6">
-            {!hasFormats && (
-              <div className="card">
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No formats generated yet</h3>
-                  <p className="text-gray-600 mb-4">
-                    This result doesn't have any generated formats yet.
-                  </p>
-                  <Link to="/upload" className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                    Upload New Content
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {/* Mind Map Format */}
-            {result?.formats?.visual && (
-              <div className="card">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {result.formats.visual.type || 'Mind Map'}
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {result.formats.visual.description || 'Visual representation of key concepts'}
-                    </p>
-                  </div>
-                </div>
-
-                {result.formats.visual.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.visual.error}
-                  </div>
-                ) : result.formats.visual.data ? (
-                  <>
-                    <MindMapViewer ref={viewerRef} mindMapData={result.formats.visual.data} />
-                    <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500">
-                      <button
-                        onClick={handleResetView}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Re-center view
-                      </button>
-                      <span>•</span>
-                      <button
-                        onClick={handleOpenFullscreen}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Fullscreen
-                      </button>
-                      <span>•</span>
-                      <button
-                        onClick={handleDownloadMindMap}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Download
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Mind map is still processing...
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Quiz Format */}
-            {result?.formats?.quiz && (
-              <div className="card">
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {result.formats.quiz.type || 'Interactive Quiz'}
-                  </h2>
+            <div className="card">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">{visualFormat?.type || 'Mind Map'}</h2>
                   <p className="text-sm text-gray-600">
-                    {result.formats.quiz.description || 'Test your understanding'}
+                    {visualFormat?.description || 'Explore concepts and relationships extracted from your upload.'}
                   </p>
-                  {result.formats.quiz.questionCount && (
-                    <p className="text-sm text-purple-600 font-medium mt-1">
-                      {result.formats.quiz.questionCount} questions
-                    </p>
+                </div>
+                <button
+                  onClick={() => setIsPreviewOpen((prev) => !prev)}
+                  className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition"
+                >
+                  {isPreviewOpen ? 'Collapse' : 'Expand'}
+                </button>
+              </div>
+
+              {visualFormat?.error && (
+                <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {visualFormat.error}
+                </div>
+              )}
+
+              {!visualFormat?.error && (
+                <div className="mt-6">
+                  {isPreviewOpen ? (
+                    visualFormat?.data ? (
+                      <>
+                        <MindMapViewer ref={viewerRef} mindMapData={visualFormat.data} />
+                        <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500">
+                          <button
+                            onClick={handleResetView}
+                            className="text-purple-600 font-medium hover:text-purple-700"
+                          >
+                            Re-center view
+                          </button>
+                          <span>Need more space? Use fullscreen mode from the controls.</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
+                        Mind map is still processing. Check back shortly.
+                      </div>
+                    )
+                  ) : (
+                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-500">
+                      Preview hidden. Select “Expand” to view the generated mind map.
+                    </div>
                   )}
                 </div>
-
-                {result.formats.quiz.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.quiz.error}
-                  </div>
-                ) : result.formats.quiz.data ? (
-                  <QuizViewer quizData={result.formats.quiz.data} />
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Quiz is still processing...
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Summary/Report Format */}
-            {result?.formats?.reports && (
-              <div className="card">
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {result.formats.reports.type || 'Summary Report'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {result.formats.reports.description || 'Comprehensive summary'}
-                  </p>
-                </div>
-
-                {result.formats.reports.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.reports.error}
-                  </div>
-                ) : result.formats.reports.data ? (
-                  <SummaryViewer summaryData={result.formats.reports.data} />
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Summary is still processing...
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="space-y-6 lg:sticky lg:top-6">
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Generated Formats</h3>
-              {hasFormats ? (
-                <div className="space-y-2">
-                  {result.formats.visual && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                      <span className="text-gray-700">Mind Map</span>
-                    </div>
-                  )}
-                  {result.formats.quiz && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      <span className="text-gray-700">Interactive Quiz</span>
-                    </div>
-                  )}
-                  {result.formats.reports && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      <span className="text-gray-700">Summary Report</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No formats available</p>
-              )}
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={handleDownloadMindMap}
+                  className="w-full btn-secondary text-sm"
+                >
+                  Download Mind Map
+                </button>
+                <button
+                  onClick={handleOpenFullscreen}
+                  className="w-full btn-secondary text-sm"
+                >
+                  View Fullscreen
+                </button>
+              </div>
             </div>
 
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Details</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
+                <div className="flex justify-between">
                   <span className="text-gray-600">Result ID:</span>
-                  <span className="font-medium text-gray-900 text-right truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
+                  <span className="font-medium text-gray-900">{result?.id || id || '—'}</span>
                 </div>
-                <div className="flex justify-between gap-4">
+                <div className="flex justify-between">
                   <span className="text-gray-600">Uploaded:</span>
                   <span className="font-medium text-gray-900 text-right">{absoluteUploadTime}</span>
                 </div>
-                <div className="flex justify-between gap-4">
+                <div className="flex justify-between">
                   <span className="text-gray-600">File Name:</span>
                   <span
-                    className="font-medium text-gray-900 truncate text-right"
+                    className="font-medium text-gray-900 max-w-[200px] truncate text-right"
                     title={resultTitle}
                   >
                     {resultTitle}
                   </span>
                 </div>
               </div>
-            </div>
-
-            <div className="card">
-              <Link
-                to="/results"
-                className="w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                ← Back to All Results
-              </Link>
             </div>
           </div>
         </div>

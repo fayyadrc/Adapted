@@ -11,6 +11,9 @@ import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import './App.css';
 
+// Import test helpers for development/testing
+import './utils/testDataHelper';
+
 function App() {
   // FOR TESTING: Start in logged-in state to bypass disabled login
   const [isLoggedIn, setIsLoggedIn] = useState(true);

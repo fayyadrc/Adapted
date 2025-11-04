@@ -24,6 +24,29 @@ import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
 import api from '../services/apiService';
 
+// Helper function to save results to localStorage
+const saveResultToLocalStorage = (result) => {
+  try {
+    const existingResults = JSON.parse(localStorage.getItem('adapted:results') || '[]');
+    
+    // Check if a result with this ID already exists
+    const existingIndex = existingResults.findIndex(r => r.id === result.id);
+    
+    if (existingIndex !== -1) {
+      // Update existing result
+      existingResults[existingIndex] = result;
+    } else {
+      // Add new result
+      existingResults.unshift(result); // Add to beginning of array
+    }
+    
+    localStorage.setItem('adapted:results', JSON.stringify(existingResults));
+    console.log('✅ Result saved to localStorage');
+  } catch (error) {
+    console.error('Failed to save result to localStorage:', error);
+  }
+};
+
 export default function Upload() {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -180,22 +203,27 @@ export default function Upload() {
       console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
       console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
       
-      // Merge new formats with existing ones (preserve previously generated formats)
+      let finalResult;
       if (generatedResult && generatedResult.title === title) {
         console.log('✅ Merging with existing formats for the same file');
-        setGeneratedResult(prev => ({
-          ...prev,
+        finalResult = {
+          ...generatedResult,
           formats: {
-            ...prev.formats,
+            ...generatedResult.formats,
             ...enrichedResult.formats
           }
-        }));
+        };
+        setGeneratedResult(finalResult);
       } else {
         console.log('✅ Setting new result');
-        setGeneratedResult(enrichedResult);
+        finalResult = enrichedResult;
+        setGeneratedResult(finalResult);
       }
       
-      // Don't auto-open modals - let users choose what to view from the Generated Content cards
+      
+      saveResultToLocalStorage(finalResult);
+      
+      
       console.log('✅ Content generated successfully. All formats available in Generated Content section.');
       
     } catch (err) {

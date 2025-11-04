@@ -1,55 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard({ user }) {
-  const [uploads, setUploads] = useState([
-    {
-      id: 1,
-      title: 'Biology Chapter 3',
-      uploadDate: '2024-11-01',
-      status: 'completed',
-      formats: ['visual', 'audio', 'quiz']
-    },
-    {
-      id: 2,
-      title: 'History Notes',
-      uploadDate: '2024-10-30',
-      status: 'processing',
-      formats: []
-    },
-    {
-      id: 3,
-      title: 'Computer Science Notes',
-      uploadDate: '2024-10-2',
-      status: 'completed',
-      formats: ['visual', 'summary']
-    }
-  ]);
+  const [recentResults, setRecentResults] = useState([]);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-50 text-green-700 border-green-200';
-      case 'processing':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'failed':
-        return 'bg-red-50 text-red-700 border-red-200';
-      default:
-        return 'bg-gray-50 text-gray-700 border-gray-200';
+  useEffect(() => {
+    // Load recent results from localStorage
+    try {
+      const results = JSON.parse(localStorage.getItem('adapted:results') || '[]');
+      // Get the 3 most recent results
+      setRecentResults(results.slice(0, 3));
+    } catch (error) {
+      console.error('Failed to load results:', error);
+      setRecentResults([]);
     }
+  }, []);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
+    });
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'Completed';
-      case 'processing':
-        return 'Processing...';
-      case 'failed':
-        return 'Failed';
-      default:
-        return 'Unknown';
-    }
+  const getFormatCount = (formats) => {
+    return Object.keys(formats || {}).length;
   };
 
   return (
@@ -69,9 +46,9 @@ export default function Dashboard({ user }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <Link
             to="/upload"
-            className="card hover:shadow-md transition-shadow cursor-pointer group"
+            className="card hover:shadow-md transition-shadow cursor-pointer group h-full"
           >
-            <div className="flex items-center space-x-4">
+            <div className="flex items-start space-x-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -86,9 +63,9 @@ export default function Dashboard({ user }) {
 
           <Link
             to="/results"
-            className="card hover:shadow-md transition-shadow cursor-pointer group"
+            className="card hover:shadow-md transition-shadow cursor-pointer group h-full"
           >
-            <div className="flex items-center space-x-4">
+            <div className="flex items-start space-x-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -103,9 +80,9 @@ export default function Dashboard({ user }) {
 
           <Link
             to="/assessment"
-            className="card hover:shadow-md transition-shadow cursor-pointer group"
+            className="card hover:shadow-md transition-shadow cursor-pointer group h-full"
           >
-            <div className="flex items-center space-x-4">
+            <div className="flex items-start space-x-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -119,44 +96,50 @@ export default function Dashboard({ user }) {
           </Link>
         </div>
 
-        {/* Recent Uploads */}
+        {/* Recent Results */}
         <div className="card">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Uploads</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Recent Results</h2>
+            {recentResults.length > 0 && (
+              <Link to="/results" className="text-purple-600 hover:text-purple-700 font-medium text-sm">
+                View all →
+              </Link>
+            )}
+          </div>
           
-          {uploads.length === 0 ? (
+          {recentResults.length === 0 ? (
             <div className="text-center py-12">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <p className="text-gray-600 mb-4">No uploads yet. Start by uploading your first document!</p>
+              <p className="text-gray-600 mb-4">Nothing yet!</p>
               <Link to="/upload" className="btn-primary">
                 Upload Now
               </Link>
             </div>
           ) : (
             <div className="space-y-4">
-              {uploads.map(upload => (
-                <div key={upload.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              {recentResults.map(result => (
+                <div key={result.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{upload.title}</h3>
+                    <h3 className="font-semibold text-gray-900">{result.title}</h3>
                     <p className="text-sm text-gray-600">
-                      Uploaded {new Date(upload.uploadDate).toLocaleDateString()}
+                      Uploaded {formatDate(result.uploadedAt)}
                     </p>
                   </div>
                   
                   <div className="flex items-center space-x-4">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(upload.status)}`}>
-                      {getStatusText(upload.status)}
+                    <div className="px-3 py-1 rounded-full text-sm font-medium bg-green-50 text-green-700 border border-green-200">
+                      {getFormatCount(result.formats)} {getFormatCount(result.formats) === 1 ? 'format' : 'formats'}
                     </div>
                     
-                    {upload.status === 'completed' && (
-                      <Link
-                        to={`/results/${upload.id}`}
-                        className="text-purple-600 hover:text-purple-700 font-medium text-sm"
-                      >
-                        View →
-                      </Link>
-                    )}
+                    <Link
+                      to={`/results/${result.id}`}
+                      state={result}
+                      className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+                    >
+                      View →
+                    </Link>
                   </div>
                 </div>
               ))}
