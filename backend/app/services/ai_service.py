@@ -176,36 +176,31 @@ def generate_summary_from_text(text_content):
         }
 
 
-def generate_quiz_from_text(text_content):
+def generate_quiz_from_text(text_content, num_questions=5):
     """Generate an interactive quiz from text content"""
     model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
-    You are an educational assistant creating a quiz for high school students. Generate an engaging quiz based on the following text.
+    You are an educational assistant creating a quiz for students. Generate {num_questions} multiple-choice questions based on the following text.
 
     Format your response as a JSON object with this exact structure:
     {{
-        "title": "Quiz title based on the content",
-        "description": "Brief description of what this quiz covers",
+        "quiz_type": "mcq",
         "questions": [
             {{
-                "question": "Question text here",
-                "type": "multiple_choice",
+                "question": "Question text here?",
                 "options": ["Option A", "Option B", "Option C", "Option D"],
-                "correct_answer": 0,
-                "explanation": "Brief explanation of why this is correct"
-            }},
-            {{
-                "question": "Another question",
-                "type": "true_false", 
-                "options": ["True", "False"],
-                "correct_answer": 1,
-                "explanation": "Explanation for the answer"
+                "answer": "Option B"
             }}
         ]
     }}
 
-    Create 8-10 questions total. Mix multiple choice and true/false questions. Make sure questions test understanding, not just memorization. Keep language clear and appropriate for high school level.
+    IMPORTANT:
+    - Generate exactly {num_questions} questions
+    - Each question must have 4 options
+    - The "answer" field must be the exact text of the correct option (not an index)
+    - Questions should test understanding, not just memorization
+    - Keep language clear and appropriate for students
 
     Text for quiz creation:
     ---
@@ -222,35 +217,32 @@ def generate_quiz_from_text(text_content):
         
         try:
             parsed_data = json.loads(cleaned_response)
+            # Ensure the format is correct
+            if "questions" not in parsed_data:
+                parsed_data = {"quiz_type": "mcq", "questions": []}
+            if "quiz_type" not in parsed_data:
+                parsed_data["quiz_type"] = "mcq"
             return parsed_data
         except json.JSONDecodeError:
             return {
-                "error": "Failed to parse AI response",
-                "title": "Quiz Generation Error",
-                "description": "Unable to generate quiz at this time.",
+                "quiz_type": "mcq",
                 "questions": [
                     {
                         "question": "Please try uploading your document again.",
-                        "type": "multiple_choice",
                         "options": ["Try again", "Upload different file", "Contact support", "Check file format"],
-                        "correct_answer": 0,
-                        "explanation": "Technical error occurred during quiz generation."
+                        "answer": "Try again"
                     }
                 ]
             }
     except Exception as e:
         print(f"Error generating quiz: {e}")
         return {
-            "error": f"Failed to generate quiz: {str(e)}",
-            "title": "Error",
-            "description": "Unable to process your document for quiz creation.",
+            "quiz_type": "mcq",
             "questions": [
                 {
                     "question": "What should you do when encountering this error?",
-                    "type": "multiple_choice", 
                     "options": ["Try again", "Contact support", "Check internet", "All of the above"],
-                    "correct_answer": 3,
-                    "explanation": "System errors can usually be resolved by trying again or contacting support."
+                    "answer": "All of the above"
                 }
             ]
         }

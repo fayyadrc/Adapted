@@ -118,8 +118,17 @@ def upload_and_process():
 
     # Generate quiz format
     if "quiz" in requested_formats:
+        print("=== Generating QUIZ format ===")
         try:
-            quiz_data = generate_quiz_from_text(text_content)
+            # Get number of questions from request, default to 5
+            num_questions = request.form.get('num_questions', 5)
+            try:
+                num_questions = int(num_questions)
+            except (ValueError, TypeError):
+                num_questions = 5
+            
+            quiz_data = generate_quiz_from_text(text_content, num_questions)
+            print(f"Quiz data generated: {json.dumps(quiz_data, indent=2)[:200]}...")
             results["formats"]["quiz"] = {
                 "type": "Interactive Quiz",
                 "description": "Test your understanding with AI-generated questions",
@@ -127,8 +136,10 @@ def upload_and_process():
                 "questionCount": len(quiz_data.get('questions', [])),
                 "icon": "❓"
             }
+            print(f"Quiz format added to results")
         except Exception as e:
             print(f"Error generating quiz: {e}")
+            traceback.print_exc()
             results["formats"]["quiz"] = {
                 "type": "Interactive Quiz",
                 "description": "Error generating quiz",

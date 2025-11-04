@@ -5,11 +5,12 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
-  async uploadFile(file, title, formats) {
+  async uploadFile(file, title, formats, numQuestions = 5) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('formats', JSON.stringify(formats));
+    formData.append('num_questions', numQuestions);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',

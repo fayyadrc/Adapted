@@ -74,7 +74,6 @@ export default function Upload() {
     }
 
     setFile(selectedFile);
-    // Auto-fill title with filename
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''));
     setError('');
   };
@@ -93,14 +92,13 @@ export default function Upload() {
     }
   };
 
-  // Helper to check if any format is selected
   const isAnyFormatSelected = () => {
     if (selectedFormats.audio || selectedFormats.quiz || selectedFormats.video || 
         selectedFormats.flashcards || selectedFormats.reports) return true;
     return Object.values(selectedFormats.visual).some((isSelected) => isSelected);
   };
 
-  // Main submission handler
+  // FIXED: Main submission handler with proper data structure handling
   const handleGenerate = async () => {
     setError('');
     if (!file || !title || !isAnyFormatSelected()) {
@@ -110,7 +108,6 @@ export default function Upload() {
 
     setLoading(true);
 
-    // Create a clean object of selected formats to send to backend
     const formatsToGenerate = [];
     if (selectedFormats.audio) formatsToGenerate.push('audio');
     if (selectedFormats.quiz) formatsToGenerate.push('quiz');
@@ -118,77 +115,91 @@ export default function Upload() {
     if (selectedFormats.flashcards) formatsToGenerate.push('flashcards');
     if (selectedFormats.reports) formatsToGenerate.push('reports');
     
-    // Only add "visual" if a sub-option is selected
     if (Object.values(selectedFormats.visual).some(Boolean)) {
       formatsToGenerate.push('visual');
     }
 
     try {
-      // Use centralized API service
-      const data = await api.uploadFile(file, title, formatsToGenerate);
-      console.log('Backend response:', data); // Debug log
+      console.log('=== UPLOAD DEBUG ===');
+      console.log('Selected formats:', selectedFormats);
+      console.log('Formats to generate:', formatsToGenerate);
       
-      // Structure the result properly based on backend response
-      // Backend returns mind map data directly, so we need to wrap it
+      const data = await api.uploadFile(file, title, formatsToGenerate);
+      console.log('Raw backend response:', data);
+      
+      // FIXED: Properly structure the result based on backend response
       const enrichedResult = {
         id: data?.id || `local-${Date.now()}`,
+        title: title,
         uploadedAt: new Date().toISOString(),
         formats: {}
       };
 
-      // If mind map was requested and we have root data, structure it properly
-      if (selectedFormats.visual.mindmap && (data.root || data?.formats?.visual?.data)) {
-        // If unified endpoint used, it will already have formats.visual
+      // Handle visual/mindmap format
+      if (selectedFormats.visual.mindmap) {
+        // Check if backend returned the unified structure
         if (data?.formats?.visual?.data) {
           enrichedResult.formats.visual = {
-            data: data.formats.visual.data
+            type: data.formats.visual.type || 'Mind Map',
+            description: data.formats.visual.description || 'Interactive mind map',
+            data: data.formats.visual.data,
+            error: data.formats.visual.error
           };
-        } else {
-          // If raw mindmap returned (legacy), wrap it
+        }
+        // Or if it returned just the mind map data directly
+        else if (data.root) {
           enrichedResult.formats.visual = {
-            data: data
+            type: 'Mind Map',
+            description: 'Interactive mind map showing key concepts',
+            data: data  // The whole response is the mind map
           };
         }
       }
 
-      console.log('Enriched result:', enrichedResult); // Debug log
-      console.log('Selected formats:', selectedFormats); // Debug log
+      // Handle audio format
+      if (selectedFormats.audio && data?.formats?.audio) {
+        enrichedResult.formats.audio = data.formats.audio;
+      }
+
+      // Handle quiz format  
+      if (selectedFormats.quiz && data?.formats?.quiz) {
+        enrichedResult.formats.quiz = data.formats.quiz;
+      }
+
+      console.log('Enriched result structure:', enrichedResult);
+      console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
+      console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
       
       setGeneratedResult(enrichedResult);
       
-      // Show mind map modal if visual/mindmap was selected AND data exists
+      // FIXED: Show mind map modal if visual/mindmap was selected AND we have data
       if (selectedFormats.visual.mindmap && enrichedResult?.formats?.visual?.data) {
-        console.log('Opening mind map modal'); // Debug log
-        console.log('Visual data:', enrichedResult.formats.visual.data); // Debug log
+        console.log('✅ Opening mind map modal');
         setShowMindMapModal(true);
         setIsMindMapMinimized(false);
       } else {
-        console.log('Mind map modal NOT opened because:'); // Debug log
-        console.log('- mindmap selected:', selectedFormats.visual.mindmap); // Debug log
-        console.log('- visual format exists:', !!enrichedResult?.formats?.visual); // Debug log
-        console.log('- visual data exists:', !!enrichedResult?.formats?.visual?.data); // Debug log
-        console.log('- enrichedResult structure:', enrichedResult); // Debug log
+        console.log('❌ NOT opening mind map modal');
+        console.log('  - mindmap selected:', selectedFormats.visual.mindmap);
+        console.log('  - has visual format:', !!enrichedResult?.formats?.visual);
+        console.log('  - has visual data:', !!enrichedResult?.formats?.visual?.data);
       }
+      
     } catch (err) {
+      console.error('❌ Generation error:', err);
       setError(err.message || 'Failed to generate. Please try again.');
-      console.error('Generation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Format Selection Handlers ---
-
+  // Format Selection Handlers
   const handleFormatClick = (formatKey) => {
     if (formatKey === 'visual') {
-      // Toggle sub-options
       setShowVisualSubOptions(!showVisualSubOptions);
     } else if (formatKey === 'audio' || formatKey === 'video' || 
                formatKey === 'quiz' || formatKey === 'flashcards') {
-      // Handle "Coming Soon" for other formats
       alert('Coming Soon');
     } else if (formatKey === 'reports') {
-      // Reports can be toggled
       setSelectedFormats(prev => ({
         ...prev,
         [formatKey]: !prev[formatKey]
@@ -206,16 +217,11 @@ export default function Upload() {
         },
       }));
     } else {
-      // Handle "Coming Soon" for sub-options
       alert('Coming Soon');
     }
   };
 
   const isRecommended = (key) => userAssessment.recommended.includes(key);
-
-  const toggleCardExpansion = (cardType) => {
-    setExpandedCard(expandedCard === cardType ? null : cardType);
-  };
 
   const handleMinimizeMindMap = () => {
     setIsMindMapMinimized(true);
@@ -233,12 +239,6 @@ export default function Upload() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Debug info */}
-        {console.log('Render - showMindMapModal:', showMindMapModal)}
-        {console.log('Render - isMindMapMinimized:', isMindMapMinimized)}
-        {console.log('Render - generatedResult:', generatedResult)}
-        {console.log('Render - has visual data:', !!generatedResult?.formats?.visual?.data)}
         
         {/* Mind Map Modal - Full Screen */}
         {showMindMapModal && !isMindMapMinimized && generatedResult?.formats?.visual?.data && (
@@ -281,7 +281,7 @@ export default function Upload() {
           </div>
         )}
 
-        {/* Upload Section - Always visible at top */}
+        {/* Upload Section */}
         {!generatedResult && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -375,7 +375,6 @@ export default function Upload() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Select Formats</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       
-                      {/* Visual Learning Card */}
                       <FormatSelectionCard
                         title="Visual Learning"
                         description="Mind maps & diagrams"
@@ -386,7 +385,6 @@ export default function Upload() {
                         isSelected={showVisualSubOptions}
                       />
 
-                      {/* Audio Card */}
                       <FormatSelectionCard
                         title="Audio Overview"
                         description="Listen to your notes"
@@ -398,7 +396,6 @@ export default function Upload() {
                         isComingSoon={true}
                       />
 
-                      {/* Video Card */}
                       <FormatSelectionCard
                         title="Video Overview"
                         description="Visual explanations"
@@ -410,7 +407,6 @@ export default function Upload() {
                         isComingSoon={true}
                       />
 
-                      {/* Reports Card */}
                       <FormatSelectionCard
                         title="Reports"
                         description="Detailed summaries"
@@ -421,7 +417,6 @@ export default function Upload() {
                         isSelected={selectedFormats.reports}
                       />
 
-                      {/* Flashcards Card */}
                       <FormatSelectionCard
                         title="Flashcards"
                         description="Study cards"
@@ -433,7 +428,6 @@ export default function Upload() {
                         isComingSoon={true}
                       />
 
-                      {/* Quiz Card */}
                       <FormatSelectionCard
                         title="Quiz"
                         description="Practice questions"
@@ -537,16 +531,12 @@ export default function Upload() {
           </div>
         )}
 
-
-
       </div>
     </div>
   );
 }
 
-
-// --- Reusable Card Components for Format Selection ---
-
+// Reusable Card Components
 const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, isSelected, isRecommended, isComingSoon }) => (
   <button
     onClick={onClick}
@@ -608,52 +598,3 @@ const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon })
     )}
   </button>
 );
-
-// Studio Card Component
-const StudioCard = ({ 
-  title, 
-  icon: Icon, 
-  bgColor, 
-  borderColor, 
-  iconBg, 
-  iconColor,
-  isAvailable,
-  isExpanded,
-  onToggle,
-  content
-}) => (
-  <button
-    onClick={onToggle}
-    className={`relative p-6 rounded-xl border transition-all text-left bg-gradient-to-br ${bgColor} ${borderColor} hover:shadow-md ${
-      isExpanded ? 'ring-2 ring-purple-300' : ''
-    }`}
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div className={`w-12 h-12 rounded-lg ${iconBg} flex items-center justify-center`}>
-        <Icon className={`w-6 h-6 ${iconColor}`} />
-      </div>
-      {isAvailable && (
-        <button className="p-1.5 hover:bg-white/50 rounded-lg transition-colors">
-          <Edit2 className="w-4 h-4 text-gray-600" />
-        </button>
-      )}
-    </div>
-    <h3 className="text-gray-900 font-semibold text-lg">{title}</h3>
-    {!isAvailable && (
-      <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
-        Coming Soon
-      </span>
-    )}
-  </button>
-);
-
-// Helper style for animation (add to your index.css or App.css if not already present)
-/*
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-*/
