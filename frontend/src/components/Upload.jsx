@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
+import SummaryViewer from './SummaryViewer';
 import api from '../services/apiService';
 
 export default function Upload() {
@@ -32,7 +33,11 @@ export default function Upload() {
   const [expandedCard, setExpandedCard] = useState(null);
   const [showMindMapModal, setShowMindMapModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [isMindMapMinimized, setIsMindMapMinimized] = useState(false);
+  const [isQuizMinimized, setIsQuizMinimized] = useState(false);
+  const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
+  const [numQuestions, setNumQuestions] = useState(5);
   const fileInputRef = useRef(null);
 
   // State for format selection
@@ -50,6 +55,7 @@ export default function Upload() {
     reports: false,
   });
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
+  const [showQuizOptions, setShowQuizOptions] = useState(false);
 
   // Mock user assessment data
   const userAssessment = { recommended: ['visual'] };
@@ -125,9 +131,13 @@ export default function Upload() {
       console.log('=== UPLOAD DEBUG ===');
       console.log('Selected formats:', selectedFormats);
       console.log('Formats to generate:', formatsToGenerate);
+      console.log('Number of questions:', numQuestions);
       
-      const data = await api.uploadFile(file, title, formatsToGenerate);
+      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions);
       console.log('Raw backend response:', data);
+      console.log('Response keys:', Object.keys(data));
+      console.log('Has formats key?', 'formats' in data);
+      console.log('Full response:', JSON.stringify(data, null, 2));
       
       // FIXED: Properly structure the result based on backend response
       const enrichedResult = {
@@ -137,54 +147,56 @@ export default function Upload() {
         formats: {}
       };
 
-      // Handle visual/mindmap format
-      if (selectedFormats.visual.mindmap) {
-        // Check if backend returned the unified structure
-        if (data?.formats?.visual?.data) {
-          enrichedResult.formats.visual = {
-            type: data.formats.visual.type || 'Mind Map',
-            description: data.formats.visual.description || 'Interactive mind map',
-            data: data.formats.visual.data,
-            error: data.formats.visual.error
-          };
-        }
-        // Or if it returned just the mind map data directly
-        else if (data.root) {
+      // Check if backend returned proper format structure
+      if (data?.formats) {
+        console.log('Backend returned proper format structure');
+        enrichedResult.formats = data.formats;
+      } else {
+        console.log('Backend returned raw data, need to wrap it');
+        
+        // Handle visual/mindmap format
+        if (selectedFormats.visual.mindmap && data.root) {
           enrichedResult.formats.visual = {
             type: 'Mind Map',
             description: 'Interactive mind map showing key concepts',
-            data: data  // The whole response is the mind map
+            data: data
           };
         }
-      }
-
-      // Handle audio format
-      if (selectedFormats.audio && data?.formats?.audio) {
-        enrichedResult.formats.audio = data.formats.audio;
-      }
-
-      // Handle quiz format  
-      if (selectedFormats.quiz && data?.formats?.quiz) {
-        enrichedResult.formats.quiz = data.formats.quiz;
+        
+        // Handle quiz format (check for quiz_type or questions array)
+        if (selectedFormats.quiz && (data.quiz_type || data.questions)) {
+          enrichedResult.formats.quiz = {
+            type: 'Interactive Quiz',
+            description: 'Test your understanding with AI-generated questions',
+            data: data,
+            questionCount: data.questions?.length || 0,
+            icon: '❓'
+          };
+        }
       }
 
       console.log('Enriched result structure:', enrichedResult);
       console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
       console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
+      console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
       
-      setGeneratedResult(enrichedResult);
-      
-      // FIXED: Show mind map modal if visual/mindmap was selected AND we have data
-      if (selectedFormats.visual.mindmap && enrichedResult?.formats?.visual?.data) {
-        console.log('✅ Opening mind map modal');
-        setShowMindMapModal(true);
-        setIsMindMapMinimized(false);
+      // Merge new formats with existing ones (preserve previously generated formats)
+      if (generatedResult && generatedResult.title === title) {
+        console.log('✅ Merging with existing formats for the same file');
+        setGeneratedResult(prev => ({
+          ...prev,
+          formats: {
+            ...prev.formats,
+            ...enrichedResult.formats
+          }
+        }));
       } else {
-        console.log('❌ NOT opening mind map modal');
-        console.log('  - mindmap selected:', selectedFormats.visual.mindmap);
-        console.log('  - has visual format:', !!enrichedResult?.formats?.visual);
-        console.log('  - has visual data:', !!enrichedResult?.formats?.visual?.data);
+        console.log('✅ Setting new result');
+        setGeneratedResult(enrichedResult);
       }
+      
+      // Don't auto-open modals - let users choose what to view from the Generated Content cards
+      console.log('✅ Content generated successfully. All formats available in Generated Content section.');
       
     } catch (err) {
       console.error('❌ Generation error:', err);
@@ -198,9 +210,19 @@ export default function Upload() {
   const handleFormatClick = (formatKey) => {
     if (formatKey === 'visual') {
       setShowVisualSubOptions(!showVisualSubOptions);
+    } else if (formatKey === 'quiz') {
+      const newQuizState = !selectedFormats.quiz;
+      console.log('Quiz clicked. New state:', newQuizState);
+      setSelectedFormats(prev => ({
+        ...prev,
+        quiz: newQuizState
+      }));
+      // Show options when selecting, hide when deselecting
+      setShowQuizOptions(newQuizState);
+      console.log('Show quiz options:', newQuizState);
     } else if (formatKey === 'audio' || formatKey === 'video' || formatKey === 'flashcards') {
       alert('Coming Soon');
-    } else if (formatKey === 'reports' || formatKey === 'quiz') {
+    } else if (formatKey === 'reports') {
       setSelectedFormats(prev => ({
         ...prev,
         [formatKey]: !prev[formatKey]
@@ -229,12 +251,41 @@ export default function Upload() {
   };
 
   const handleMaximizeMindMap = () => {
+    setShowMindMapModal(true);
     setIsMindMapMinimized(false);
   };
 
   const handleCloseMindMap = () => {
     setShowMindMapModal(false);
     setIsMindMapMinimized(false);
+  };
+
+  const handleMinimizeQuiz = () => {
+    setIsQuizMinimized(true);
+  };
+
+  const handleMaximizeQuiz = () => {
+    setShowQuizModal(true);
+    setIsQuizMinimized(false);
+  };
+
+  const handleCloseQuiz = () => {
+    setShowQuizModal(false);
+    setIsQuizMinimized(false);
+  };
+
+  const handleMinimizeSummary = () => {
+    setIsSummaryMinimized(true);
+  };
+
+  const handleMaximizeSummary = () => {
+    setShowSummaryModal(true);
+    setIsSummaryMinimized(false);
+  };
+
+  const handleCloseSummary = () => {
+    setShowSummaryModal(false);
+    setIsSummaryMinimized(false);
   };
 
   return (
@@ -258,13 +309,6 @@ export default function Upload() {
                   >
                     <Minimize2 className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button
-                    onClick={handleCloseMindMap}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="w-5 h-5 text-gray-600" />
-                  </button>
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
@@ -283,7 +327,7 @@ export default function Upload() {
         )}
 
         {/* Quiz Modal */}
-        {showQuizModal && generatedResult?.formats?.quiz?.data && (
+        {showQuizModal && !isQuizMinimized && generatedResult?.formats?.quiz?.data && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -291,16 +335,60 @@ export default function Upload() {
                   <h2 className="text-xl font-semibold text-gray-900">Quiz: {title}</h2>
                   <p className="text-sm text-gray-500">Test your knowledge</p>
                 </div>
-                <button
-                  onClick={() => setShowQuizModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="w-5 h-5 text-gray-600" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleMinimizeQuiz}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Minimize"
+                  >
+                    <Minimize2 className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <QuizViewer quizData={generatedResult.formats.quiz.data} />
+                {generatedResult.formats.quiz.error ? (
+                  <div className="p-6">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      {generatedResult.formats.quiz.error}
+                    </div>
+                  </div>
+                ) : (
+                  <QuizViewer quizData={generatedResult.formats.quiz.data} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Modal */}
+        {showSummaryModal && !isSummaryMinimized && generatedResult?.formats?.reports?.data && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Summary: {title}</h2>
+                  <p className="text-sm text-gray-500">Comprehensive summary report</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleMinimizeSummary}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Minimize"
+                  >
+                    <Minimize2 className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {generatedResult.formats.reports.error ? (
+                  <div className="p-6">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      {generatedResult.formats.reports.error}
+                    </div>
+                  </div>
+                ) : (
+                  <SummaryViewer summaryData={generatedResult.formats.reports.data} />
+                )}
               </div>
             </div>
           </div>
@@ -324,9 +412,9 @@ export default function Upload() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* File Upload Card */}
+            {/* Column 1: File Upload Card */}
             <div className="lg:col-span-1">
-              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">1. Choose File</h3>
                 <div
                   onDragOver={handleDragOver}
@@ -392,42 +480,102 @@ export default function Upload() {
               </div>
             </div>
 
-            {/* Format Selection Card */}
+            {/* Column 2: Format Selection Card */}
             {file && title && (
-              <div className="lg:col-span-2">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="lg:col-span-1">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Select Formats</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+
+                    <div>
+                      <FormatSelectionCard
+                        title="Visual Learning"
+                        description="Mind maps & diagrams"
+                        icon={Brain}
+                        color="purple"
+                        onClick={() => handleFormatClick('visual')}
+                        isRecommended={isRecommended('visual')}
+                        isSelected={showVisualSubOptions}
+                      />
+                      
+                      {/*Visual Sub-Options*/}
+                      {showVisualSubOptions && (
+                        <div className="mt-2 space-y-2 animate-fade-in">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 pl-4">
+                            Visual Types
+                          </p>
+                          <SubOptionCard
+                            title="Mind Map"
+                            icon={BookText}
+                            onClick={() => handleSubOptionClick('mindmap')}
+                            isSelected={selectedFormats.visual.mindmap}
+                          />
+                          <SubOptionCard
+                            title="Chart"
+                            icon={BarChart2}
+                            onClick={() => handleSubOptionClick('chart')}
+                            isSelected={selectedFormats.visual.chart}
+                            isComingSoon={true}
+                          />
+                          <SubOptionCard
+                            title="Diagram"
+                            icon={Image}
+                            onClick={() => handleSubOptionClick('diagram')}
+                            isSelected={selectedFormats.visual.diagram}
+                            isComingSoon={true}
+                          />
+                          <SubOptionCard
+                            title="Infographic"
+                            icon={Sparkles}
+                            onClick={() => handleSubOptionClick('infographic')}
+                            isSelected={selectedFormats.visual.infographic}
+                            isComingSoon={true}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <FormatSelectionCard
+                        title="Quiz"
+                        description="Practice questions"
+                        icon={FileQuestion}
+                        color="cyan"
+                        onClick={() => handleFormatClick('quiz')}
+                        isRecommended={isRecommended('quiz')}
+                        isSelected={selectedFormats.quiz}
+                      />
+                      
+                      {/* Quiz Options */}
+                      {showQuizOptions && selectedFormats.quiz && (
+                        <div className="mt-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg animate-fade-in">
+                          <label htmlFor="numQuestions" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                            Number of Questions
+                          </label>
+                          <select
+                            id="numQuestions"
+                            value={numQuestions}
+                            onChange={(e) => setNumQuestions(parseInt(e.target.value))}
+                            className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                          >
+                            <option value={3}>3 questions</option>
+                            <option value={5}>5 questions</option>
+                            <option value={7}>7 questions</option>
+                            <option value={10}>10 questions</option>
+                            <option value={15}>15 questions</option>
+                            <option value={20}>20 questions</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
 
                     <FormatSelectionCard
-                      title="Visual Learning"
-                      description="Mind maps & diagrams"
-                      icon={Brain}
-                      color="purple"
-                      onClick={() => handleFormatClick('visual')}
-                      isRecommended={isRecommended('visual')}
-                      isSelected={showVisualSubOptions}
-                    />
-
-                    <FormatSelectionCard
-                      title="Audio Overview"
+                      title="Podcast Audio"
                       description="Listen to your notes"
                       icon={Headphones}
                       color="blue"
                       onClick={() => handleFormatClick('audio')}
                       isRecommended={isRecommended('audio')}
                       isSelected={selectedFormats.audio}
-                      isComingSoon={true}
-                    />
-
-                    <FormatSelectionCard
-                      title="Video Overview"
-                      description="Visual explanations"
-                      icon={Video}
-                      color="indigo"
-                      onClick={() => handleFormatClick('video')}
-                      isRecommended={isRecommended('video')}
-                      isSelected={selectedFormats.video}
                       isComingSoon={true}
                     />
 
@@ -452,53 +600,9 @@ export default function Upload() {
                       isComingSoon={true}
                     />
 
-                    <FormatSelectionCard
-                      title="Quiz"
-                      description="Practice questions"
-                      icon={FileQuestion}
-                      color="cyan"
-                      onClick={() => handleFormatClick('quiz')}
-                      isRecommended={isRecommended('quiz')}
-                      isSelected={selectedFormats.quiz}
-                    />
+                    
 
                   </div>
-
-                  {/* Visual Sub-Options */}
-                  {showVisualSubOptions && (
-                    <div className="mt-4 pl-4 space-y-2 animate-fade-in">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                        Visual Types
-                      </p>
-                      <SubOptionCard
-                        title="Mind Map"
-                        icon={BookText}
-                        onClick={() => handleSubOptionClick('mindmap')}
-                        isSelected={selectedFormats.visual.mindmap}
-                      />
-                      <SubOptionCard
-                        title="Chart"
-                        icon={BarChart2}
-                        onClick={() => handleSubOptionClick('chart')}
-                        isSelected={selectedFormats.visual.chart}
-                        isComingSoon={true}
-                      />
-                      <SubOptionCard
-                        title="Diagram"
-                        icon={Image}
-                        onClick={() => handleSubOptionClick('diagram')}
-                        isSelected={selectedFormats.visual.diagram}
-                        isComingSoon={true}
-                      />
-                      <SubOptionCard
-                        title="Infographic"
-                        icon={Sparkles}
-                        onClick={() => handleSubOptionClick('infographic')}
-                        isSelected={selectedFormats.visual.infographic}
-                        isComingSoon={true}
-                      />
-                    </div>
-                  )}
 
                   <button
                     onClick={handleGenerate}
@@ -517,11 +621,139 @@ export default function Upload() {
                 </div>
               </div>
             )}
+
+            {/* Column 3: Generated Content */}
+            <div className="lg:col-span-1">
+              {generatedResult && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Generated Content</h3>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                      {Object.keys(generatedResult.formats).length} format{Object.keys(generatedResult.formats).length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+               
+
+                  <div className="space-y-3">
+                    {/* Minimized Mind Map Card */}
+                    {generatedResult?.formats?.visual?.data && (
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                              <Brain className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
+                              <p className="text-xs text-gray-600">{title}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleMaximizeMindMap}
+                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                              aria-label="Maximize"
+                            >
+                              <Maximize2 className="w-4 h-4 text-purple-600" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quiz Card */}
+                    {generatedResult?.formats?.quiz?.data && (
+                      <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200 rounded-lg p-4 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                              <FileQuestion className="w-5 h-5 text-cyan-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
+                              <p className="text-xs text-gray-600">
+                                {generatedResult.formats.quiz.data.questions?.length || 0} questions
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleMaximizeQuiz}
+                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                              aria-label="Maximize"
+                            >
+                              <Maximize2 className="w-4 h-4 text-cyan-600" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Audio Card */}
+                    {generatedResult?.formats?.audio?.data && (
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-lg p-4 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <Headphones className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">Audio</h4>
+                              <p className="text-xs text-gray-600">
+                                {generatedResult.formats.audio.duration || 'Ready to play'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => alert('Audio player coming soon!')}
+                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                              aria-label="Play"
+                            >
+                              <Maximize2 className="w-4 h-4 text-blue-600" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reports Card */}
+                    {generatedResult?.formats?.reports?.data && (
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-lg p-4 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">Summary</h4>
+                              <p className="text-xs text-gray-600">
+                                {generatedResult.formats.reports.data.title || 'Report available'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleMaximizeSummary}
+                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                              aria-label="View"
+                            >
+                              <Maximize2 className="w-4 h-4 text-emerald-600" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Generated Content Section */}
-        {generatedResult && (
+        {generatedResult && false && (
           <div className="mt-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Generated Content</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -582,39 +814,77 @@ export default function Upload() {
 }
 
 // Reusable Card Components
-const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, isSelected, isRecommended, isComingSoon }) => (
-  <button
-    onClick={onClick}
-    className={`relative p-4 rounded-lg border text-left transition-all ${
-      isSelected
-        ? `border-${color}-400 bg-${color}-50`
-        : 'border-gray-200 hover:border-gray-300 bg-white'
-    } ${isComingSoon ? 'opacity-70' : ''}`}
-  >
-    {isRecommended && (
-      <span className="absolute -top-2 -right-2 flex items-center px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold">
-        <Sparkles className="w-3 h-3 mr-1" />
-        Recommended
-      </span>
-    )}
-    {isComingSoon && !isSelected && (
-      <span className="absolute top-2 right-2 px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
-        Soon
-      </span>
-    )}
-    
-    <div className="flex items-center">
-      <div className={`w-10 h-10 rounded-lg bg-${color}-100 flex items-center justify-center mr-3`}>
-        <Icon className={`w-5 h-5 text-${color}-600`} />
+const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, isSelected, isRecommended, isComingSoon }) => {
+  // Map colors to proper Tailwind classes
+  const colorClasses = {
+    purple: {
+      border: 'border-purple-400',
+      bg: 'bg-purple-50',
+      iconBg: 'bg-purple-100',
+      iconText: 'text-purple-600'
+    },
+    cyan: {
+      border: 'border-cyan-400',
+      bg: 'bg-cyan-50',
+      iconBg: 'bg-cyan-100',
+      iconText: 'text-cyan-600'
+    },
+    blue: {
+      border: 'border-blue-400',
+      bg: 'bg-blue-50',
+      iconBg: 'bg-blue-100',
+      iconText: 'text-blue-600'
+    },
+    emerald: {
+      border: 'border-emerald-400',
+      bg: 'bg-emerald-50',
+      iconBg: 'bg-emerald-100',
+      iconText: 'text-emerald-600'
+    },
+    amber: {
+      border: 'border-amber-400',
+      bg: 'bg-amber-50',
+      iconBg: 'bg-amber-100',
+      iconText: 'text-amber-600'
+    }
+  };
+
+  const colors = colorClasses[color] || colorClasses.purple;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full relative p-4 rounded-lg border text-left transition-all ${
+        isSelected
+          ? `${colors.border} ${colors.bg}`
+          : 'border-gray-200 hover:border-gray-300 bg-white'
+      } ${isComingSoon ? 'opacity-70' : ''}`}
+    >
+      {isRecommended && (
+        <span className="absolute -top-2 -right-2 flex items-center px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold">
+          <Sparkles className="w-3 h-3 mr-1" />
+          Recommended
+        </span>
+      )}
+      {isComingSoon && !isSelected && (
+        <span className="absolute top-2 right-2 px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
+          Soon
+        </span>
+      )}
+      
+      <div className="flex items-center">
+        <div className={`w-10 h-10 rounded-lg ${colors.iconBg} flex items-center justify-center mr-3`}>
+          <Icon className={`w-5 h-5 ${colors.iconText}`} />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+          <p className="text-xs text-gray-600">{description}</p>
+        </div>
+        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
       </div>
-      <div className="flex-1">
-        <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
-        <p className="text-xs text-gray-600">{description}</p>
-      </div>
-      <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
-    </div>
-  </button>
-);
+    </button>
+  );
+};
 
 const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon }) => (
   <button

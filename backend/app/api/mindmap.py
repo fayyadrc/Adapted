@@ -14,8 +14,16 @@ def home():
 def api_test():
     return jsonify(message="Backend is working!")
 
-@mindmap_bp.route('/upload', methods=['POST'])
-def upload_and_generate():
+# OLD ROUTE - REMOVED to avoid conflict with unified /api/upload endpoint
+# The unified upload endpoint in upload.py now handles mindmap generation
+# @mindmap_bp.route('/upload', methods=['POST'])
+# def upload_and_generate():
+#     ...
+
+# If you need a direct mindmap-only endpoint, use /api/mindmap/generate
+@mindmap_bp.route('/mindmap/generate', methods=['POST'])
+def generate_mindmap_only():
+    """Direct mindmap generation endpoint (legacy support)"""
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
     

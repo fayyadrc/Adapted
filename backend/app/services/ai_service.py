@@ -120,26 +120,34 @@ def generate_mindmap_from_text(text_content):
 
 
 def generate_summary_from_text(text_content):
-    """Generate a student-friendly summary from text content"""
+    """Generate a student-friendly summary from text content with markdown formatting"""
     model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
-    You are an educational assistant helping high school students. Create a clear, engaging summary of the following text.
+    You are an educational assistant helping students understand complex topics. Create a clear, comprehensive summary of the following text.
 
     Format your response as a JSON object with this exact structure:
     {{
         "title": "Brief title for the content",
-        "summary": "2-3 sentence overview in simple language",
+        "summary": "2-3 paragraph overview in simple language with proper markdown formatting. Use **bold** for important terms, *italics* for emphasis, and proper paragraphs.",
         "key_points": [
-            "Key point 1",
-            "Key point 2", 
-            "Key point 3",
-            "Key point 4"
+            "Key point 1 - clear and concise",
+            "Key point 2 - clear and concise", 
+            "Key point 3 - clear and concise",
+            "Key point 4 - clear and concise"
         ],
-        "example": "A simple, relatable example or analogy to help understand the main concept"
+        "detailed_explanation": "A longer, more detailed explanation broken into multiple paragraphs. Use markdown formatting including:\\n\\n- **Bold** for key concepts\\n- *Italics* for emphasis\\n- Proper paragraph breaks\\n- Bullet points where appropriate\\n\\nThis should be educational and easy to understand.",
+        "example": "A simple, relatable example or analogy to help understand the main concept. Use markdown formatting here too.",
+        "conclusion": "A brief concluding thought or key takeaway in 1-2 sentences."
     }}
 
-    Keep the language simple and engaging for high school students. Avoid jargon and focus on the most important concepts.
+    Important formatting guidelines:
+    - Use **bold** (double asterisks) for important terms and concepts
+    - Use *italics* (single asterisks) for emphasis
+    - Use \\n\\n for paragraph breaks
+    - Keep the language simple and engaging for students
+    - Avoid jargon, or explain it when necessary
+    - Focus on the most important concepts
 
     Text to summarize:
     ---
@@ -163,7 +171,9 @@ def generate_summary_from_text(text_content):
                 "title": "Summary Error",
                 "summary": "Unable to generate summary at this time.",
                 "key_points": ["Please try again with a different document"],
-                "example": "Technical error occurred"
+                "detailed_explanation": "There was an error processing your document. Please try again.",
+                "example": "Technical error occurred",
+                "conclusion": "Please try uploading your document again."
             }
     except Exception as e:
         print(f"Error generating summary: {e}")
@@ -172,7 +182,9 @@ def generate_summary_from_text(text_content):
             "title": "Error",
             "summary": "Unable to process your document.",
             "key_points": ["Please try again"],
-            "example": "System error"
+            "detailed_explanation": "A system error occurred while processing your request.",
+            "example": "System error",
+            "conclusion": "Please try again later."
         }
 
 

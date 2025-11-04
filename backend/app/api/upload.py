@@ -147,6 +147,29 @@ def upload_and_process():
                 "icon": "❓"
             }
 
+    # Generate reports/summary format
+    if "reports" in requested_formats:
+        print("=== Generating REPORTS/SUMMARY format ===")
+        try:
+            summary_data = generate_summary_from_text(text_content)
+            print(f"Summary data generated successfully")
+            results["formats"]["reports"] = {
+                "type": "Summary Report",
+                "description": "Comprehensive summary with key points and examples",
+                "data": summary_data,
+                "icon": "📄"
+            }
+            print(f"Reports format added to results")
+        except Exception as e:
+            print(f"Error generating summary: {e}")
+            traceback.print_exc()
+            results["formats"]["reports"] = {
+                "type": "Summary Report",
+                "description": "Error generating summary",
+                "error": str(e),
+                "icon": "📄"
+            }
+
     # --- Store the results in our in-memory store ---
     results_store[results["id"]] = results
 

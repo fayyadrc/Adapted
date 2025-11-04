@@ -12,6 +12,14 @@ class ApiService {
     formData.append('formats', JSON.stringify(formats));
     formData.append('num_questions', numQuestions);
 
+    console.log('=== API SERVICE DEBUG ===');
+    console.log('Sending to /api/upload:');
+    console.log('  file:', file?.name);
+    console.log('  title:', title);
+    console.log('  formats:', formats);
+    console.log('  formats JSON:', JSON.stringify(formats));
+    console.log('  num_questions:', numQuestions);
+
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
@@ -22,7 +30,10 @@ class ApiService {
       throw new Error(errorData.error || 'Upload failed');
     }
 
-    return response.json();
+    const responseData = await response.json();
+    console.log('=== API RESPONSE ===');
+    console.log('Response:', responseData);
+    return responseData;
   }
 
   async getResult(id) {
