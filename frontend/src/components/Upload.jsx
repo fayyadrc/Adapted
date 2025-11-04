@@ -20,6 +20,7 @@ import {
   Minimize2
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
+import QuizViewer from './QuizViewer';
 import api from '../services/apiService';
 
 export default function Upload() {
@@ -30,6 +31,7 @@ export default function Upload() {
   const [generatedResult, setGeneratedResult] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [showMindMapModal, setShowMindMapModal] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
   const [isMindMapMinimized, setIsMindMapMinimized] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -196,10 +198,9 @@ export default function Upload() {
   const handleFormatClick = (formatKey) => {
     if (formatKey === 'visual') {
       setShowVisualSubOptions(!showVisualSubOptions);
-    } else if (formatKey === 'audio' || formatKey === 'video' || 
-               formatKey === 'quiz' || formatKey === 'flashcards') {
+    } else if (formatKey === 'audio' || formatKey === 'video' || formatKey === 'flashcards') {
       alert('Coming Soon');
-    } else if (formatKey === 'reports') {
+    } else if (formatKey === 'reports' || formatKey === 'quiz') {
       setSelectedFormats(prev => ({
         ...prev,
         [formatKey]: !prev[formatKey]
@@ -281,256 +282,300 @@ export default function Upload() {
           </div>
         )}
 
+        {/* Quiz Modal */}
+        {showQuizModal && generatedResult?.formats?.quiz?.data && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Quiz: {title}</h2>
+                  <p className="text-sm text-gray-500">Test your knowledge</p>
+                </div>
+                <button
+                  onClick={() => setShowQuizModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <QuizViewer quizData={generatedResult.formats.quiz.data} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Upload Section */}
-        {!generatedResult && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload & Transform</h1>
-                <p className="text-gray-600">
-                  Upload your document and select the formats you want to generate
-                </p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload & Transform</h1>
+              <p className="text-gray-600">
+                Upload your document and select the formats you want to generate
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* File Upload Card */}
+            <div className="lg:col-span-1">
+              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">1. Choose File</h3>
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                    file
+                      ? 'border-green-300 bg-green-50'
+                      : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  {file ? (
+                    <>
+                      <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-2" />
+                      <p className="text-green-700 font-semibold text-sm">{file.name}</p>
+                      <p className="text-xs text-green-600 mt-1">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFile(null);
+                          setTitle('');
+                        }}
+                        className="text-xs text-green-600 hover:text-green-700 mt-2 underline"
+                      >
+                        Change file
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-900 font-medium text-sm">Drop file here</p>
+                      <p className="text-gray-600 text-xs mt-1">or click to browse</p>
+                      <p className="text-gray-500 text-xs mt-2">PDF, DOCX (max 10MB)</p>
+                    </>
+                  )}
+                </div>
+
+                {file && (
+                  <div className="mt-4">
+                    <label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
+                      2. Name Your Content
+                    </label>
+                    <input
+                      id="title"
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="e.g., Biology Chapter 3"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* File Upload Card */}
-              <div className="lg:col-span-1">
+            {/* Format Selection Card */}
+            {file && title && (
+              <div className="lg:col-span-2">
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">1. Choose File</h3>
-                  <div
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
-                      file
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50'
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,.docx"
-                      onChange={handleFileChange}
-                      className="hidden"
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Select Formats</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                    <FormatSelectionCard
+                      title="Visual Learning"
+                      description="Mind maps & diagrams"
+                      icon={Brain}
+                      color="purple"
+                      onClick={() => handleFormatClick('visual')}
+                      isRecommended={isRecommended('visual')}
+                      isSelected={showVisualSubOptions}
                     />
-                    {file ? (
-                      <>
-                        <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-2" />
-                        <p className="text-green-700 font-semibold text-sm">{file.name}</p>
-                        <p className="text-xs text-green-600 mt-1">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFile(null);
-                            setTitle('');
-                          }}
-                          className="text-xs text-green-600 hover:text-green-700 mt-2 underline"
-                        >
-                          Change file
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-900 font-medium text-sm">Drop file here</p>
-                        <p className="text-gray-600 text-xs mt-1">or click to browse</p>
-                        <p className="text-gray-500 text-xs mt-2">PDF, DOCX (max 10MB)</p>
-                      </>
-                    )}
+
+                    <FormatSelectionCard
+                      title="Audio Overview"
+                      description="Listen to your notes"
+                      icon={Headphones}
+                      color="blue"
+                      onClick={() => handleFormatClick('audio')}
+                      isRecommended={isRecommended('audio')}
+                      isSelected={selectedFormats.audio}
+                      isComingSoon={true}
+                    />
+
+                    <FormatSelectionCard
+                      title="Video Overview"
+                      description="Visual explanations"
+                      icon={Video}
+                      color="indigo"
+                      onClick={() => handleFormatClick('video')}
+                      isRecommended={isRecommended('video')}
+                      isSelected={selectedFormats.video}
+                      isComingSoon={true}
+                    />
+
+                    <FormatSelectionCard
+                      title="Reports"
+                      description="Detailed summaries"
+                      icon={FileText}
+                      color="emerald"
+                      onClick={() => handleFormatClick('reports')}
+                      isRecommended={isRecommended('reports')}
+                      isSelected={selectedFormats.reports}
+                    />
+
+                    <FormatSelectionCard
+                      title="Flashcards"
+                      description="Study cards"
+                      icon={Layers}
+                      color="amber"
+                      onClick={() => handleFormatClick('flashcards')}
+                      isRecommended={isRecommended('flashcards')}
+                      isSelected={selectedFormats.flashcards}
+                      isComingSoon={true}
+                    />
+
+                    <FormatSelectionCard
+                      title="Quiz"
+                      description="Practice questions"
+                      icon={FileQuestion}
+                      color="cyan"
+                      onClick={() => handleFormatClick('quiz')}
+                      isRecommended={isRecommended('quiz')}
+                      isSelected={selectedFormats.quiz}
+                    />
+
                   </div>
 
-                  {file && (
-                    <div className="mt-4">
-                      <label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
-                        2. Name Your Content
-                      </label>
-                      <input
-                        id="title"
-                        type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="e.g., Biology Chapter 3"
+                  {/* Visual Sub-Options */}
+                  {showVisualSubOptions && (
+                    <div className="mt-4 pl-4 space-y-2 animate-fade-in">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                        Visual Types
+                      </p>
+                      <SubOptionCard
+                        title="Mind Map"
+                        icon={BookText}
+                        onClick={() => handleSubOptionClick('mindmap')}
+                        isSelected={selectedFormats.visual.mindmap}
+                      />
+                      <SubOptionCard
+                        title="Chart"
+                        icon={BarChart2}
+                        onClick={() => handleSubOptionClick('chart')}
+                        isSelected={selectedFormats.visual.chart}
+                        isComingSoon={true}
+                      />
+                      <SubOptionCard
+                        title="Diagram"
+                        icon={Image}
+                        onClick={() => handleSubOptionClick('diagram')}
+                        isSelected={selectedFormats.visual.diagram}
+                        isComingSoon={true}
+                      />
+                      <SubOptionCard
+                        title="Infographic"
+                        icon={Sparkles}
+                        onClick={() => handleSubOptionClick('infographic')}
+                        isSelected={selectedFormats.visual.infographic}
+                        isComingSoon={true}
                       />
                     </div>
                   )}
+
+                  <button
+                    onClick={handleGenerate}
+                    disabled={loading || !isAnyFormatSelected()}
+                    className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center">
+                        <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                        Generating...
+                      </span>
+                    ) : (
+                      'Generate Content'
+                    )}
+                  </button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Format Selection Card */}
-              {file && title && (
-                <div className="lg:col-span-2">
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Select Formats</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      
-                      <FormatSelectionCard
-                        title="Visual Learning"
-                        description="Mind maps & diagrams"
-                        icon={Brain}
-                        color="purple"
-                        onClick={() => handleFormatClick('visual')}
-                        isRecommended={isRecommended('visual')}
-                        isSelected={showVisualSubOptions}
-                      />
-
-                      <FormatSelectionCard
-                        title="Audio Overview"
-                        description="Listen to your notes"
-                        icon={Headphones}
-                        color="blue"
-                        onClick={() => handleFormatClick('audio')}
-                        isRecommended={isRecommended('audio')}
-                        isSelected={selectedFormats.audio}
-                        isComingSoon={true}
-                      />
-
-                      <FormatSelectionCard
-                        title="Video Overview"
-                        description="Visual explanations"
-                        icon={Video}
-                        color="indigo"
-                        onClick={() => handleFormatClick('video')}
-                        isRecommended={isRecommended('video')}
-                        isSelected={selectedFormats.video}
-                        isComingSoon={true}
-                      />
-
-                      <FormatSelectionCard
-                        title="Reports"
-                        description="Detailed summaries"
-                        icon={FileText}
-                        color="emerald"
-                        onClick={() => handleFormatClick('reports')}
-                        isRecommended={isRecommended('reports')}
-                        isSelected={selectedFormats.reports}
-                      />
-
-                      <FormatSelectionCard
-                        title="Flashcards"
-                        description="Study cards"
-                        icon={Layers}
-                        color="amber"
-                        onClick={() => handleFormatClick('flashcards')}
-                        isRecommended={isRecommended('flashcards')}
-                        isSelected={selectedFormats.flashcards}
-                        isComingSoon={true}
-                      />
-
-                      <FormatSelectionCard
-                        title="Quiz"
-                        description="Practice questions"
-                        icon={FileQuestion}
-                        color="cyan"
-                        onClick={() => handleFormatClick('quiz')}
-                        isRecommended={isRecommended('quiz')}
-                        isSelected={selectedFormats.quiz}
-                        isComingSoon={true}
-                      />
-
+        {/* Generated Content Section */}
+        {generatedResult && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Generated Content</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Minimized Mind Map Card */}
+              {generatedResult?.formats?.visual?.data && (
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Brain className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
+                        <p className="text-xs text-gray-600">{title}</p>
+                      </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleMaximizeMindMap}
+                        className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                        aria-label="Maximize"
+                      >
+                        <Maximize2 className="w-4 h-4 text-purple-600" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                    {/* Visual Sub-Options */}
-                    {showVisualSubOptions && (
-                      <div className="mt-4 pl-4 space-y-2 animate-fade-in">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                          Visual Types
-                        </p>
-                        <SubOptionCard
-                          title="Mind Map"
-                          icon={BookText}
-                          onClick={() => handleSubOptionClick('mindmap')}
-                          isSelected={selectedFormats.visual.mindmap}
-                        />
-                        <SubOptionCard
-                          title="Chart"
-                          icon={BarChart2}
-                          onClick={() => handleSubOptionClick('chart')}
-                          isSelected={selectedFormats.visual.chart}
-                          isComingSoon={true}
-                        />
-                        <SubOptionCard
-                          title="Diagram"
-                          icon={Image}
-                          onClick={() => handleSubOptionClick('diagram')}
-                          isSelected={selectedFormats.visual.diagram}
-                          isComingSoon={true}
-                        />
-                        <SubOptionCard
-                          title="Infographic"
-                          icon={Sparkles}
-                          onClick={() => handleSubOptionClick('infographic')}
-                          isSelected={selectedFormats.visual.infographic}
-                          isComingSoon={true}
-                        />
+              {/* Quiz Card */}
+              {generatedResult?.formats?.quiz?.data && (
+                <div
+                  onClick={() => setShowQuizModal(true)}
+                  className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200 rounded-lg p-4 animate-fade-in cursor-pointer hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                        <FileQuestion className="w-5 h-5 text-cyan-600" />
                       </div>
-                    )}
-
-                    {/* Minimized Mind Map Card */}
-                    {isMindMapMinimized && generatedResult?.formats?.visual?.data && (
-                      <div className="mt-4 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 animate-fade-in">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                              <Brain className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Mind Map Generated</h4>
-                              <p className="text-xs text-gray-600">{title}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={handleMaximizeMindMap}
-                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                              aria-label="Maximize"
-                            >
-                              <Maximize2 className="w-4 h-4 text-purple-600" />
-                            </button>
-                            <button
-                              onClick={handleCloseMindMap}
-                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                              aria-label="Close"
-                            >
-                              <X className="w-4 h-4 text-purple-600" />
-                            </button>
-                          </div>
-                        </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
+                        <p className="text-xs text-gray-600">{generatedResult.formats.quiz.data.questions.length} questions</p>
                       </div>
-                    )}
-
-                    <button
-                      onClick={handleGenerate}
-                      disabled={loading || !isAnyFormatSelected()}
-                      className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
-                    >
-                      {loading ? (
-                        <span className="flex items-center justify-center">
-                          <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                          Generating...
-                        </span>
-                      ) : (
-                        'Generate Content'
-                      )}
-                    </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="w-4 h-4 text-cyan-600" />
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
