@@ -37,11 +37,13 @@ def create_app():
     from .api.assessment import assessment_bp
     from .api.summary import summary_bp
     from .api.upload import upload_bp
+    from .api.quiz import quiz_bp
     app.register_blueprint(mindmap_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(summary_bp, url_prefix='/api')
     app.register_blueprint(upload_bp, url_prefix='/api')
+    app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
     
     @app.route('/health')
     def health_check():
