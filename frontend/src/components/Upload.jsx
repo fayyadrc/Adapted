@@ -20,18 +20,18 @@ import {
   Minimize2
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
-import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
+
 import api from '../services/apiService';
 
-// Helper function to save results to localStorage
+
 const saveResultToLocalStorage = (result) => {
   try {
     const existingResults = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-    
+
     // Check if a result with this ID already exists
     const existingIndex = existingResults.findIndex(r => r.id === result.id);
-    
+
     if (existingIndex !== -1) {
       // Update existing result
       existingResults[existingIndex] = result;
@@ -39,7 +39,7 @@ const saveResultToLocalStorage = (result) => {
       // Add new result
       existingResults.unshift(result); // Add to beginning of array
     }
-    
+
     localStorage.setItem('adapted:results', JSON.stringify(existingResults));
     console.log('✅ Result saved to localStorage');
   } catch (error) {
@@ -57,6 +57,7 @@ export default function Upload() {
   const [showMindMapModal, setShowMindMapModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showInfographicModal, setShowInfographicModal] = useState(false);
   const [isMindMapMinimized, setIsMindMapMinimized] = useState(false);
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
@@ -124,8 +125,8 @@ export default function Upload() {
   };
 
   const isAnyFormatSelected = () => {
-    if (selectedFormats.audio || selectedFormats.quiz || selectedFormats.video || 
-        selectedFormats.flashcards || selectedFormats.reports) return true;
+    if (selectedFormats.audio || selectedFormats.quiz || selectedFormats.video ||
+      selectedFormats.flashcards || selectedFormats.reports) return true;
     return Object.values(selectedFormats.visual).some((isSelected) => isSelected);
   };
 
@@ -145,7 +146,7 @@ export default function Upload() {
     if (selectedFormats.video) formatsToGenerate.push('video');
     if (selectedFormats.flashcards) formatsToGenerate.push('flashcards');
     if (selectedFormats.reports) formatsToGenerate.push('reports');
-    
+
     if (Object.values(selectedFormats.visual).some(Boolean)) {
       formatsToGenerate.push('visual');
     }
@@ -155,13 +156,13 @@ export default function Upload() {
       console.log('Selected formats:', selectedFormats);
       console.log('Formats to generate:', formatsToGenerate);
       console.log('Number of questions:', numQuestions);
-      
+
       const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions);
       console.log('Raw backend response:', data);
       console.log('Response keys:', Object.keys(data));
       console.log('Has formats key?', 'formats' in data);
       console.log('Full response:', JSON.stringify(data, null, 2));
-      
+
       // FIXED: Properly structure the result based on backend response
       const enrichedResult = {
         id: data?.id || `local-${Date.now()}`,
@@ -176,7 +177,7 @@ export default function Upload() {
         enrichedResult.formats = data.formats;
       } else {
         console.log('Backend returned raw data, need to wrap it');
-        
+
         // Handle visual/mindmap format
         if (selectedFormats.visual.mindmap && data.root) {
           enrichedResult.formats.visual = {
@@ -185,7 +186,7 @@ export default function Upload() {
             data: data
           };
         }
-        
+
         // Handle quiz format (check for quiz_type or questions array)
         if (selectedFormats.quiz && (data.quiz_type || data.questions)) {
           enrichedResult.formats.quiz = {
@@ -198,11 +199,39 @@ export default function Upload() {
         }
       }
 
+      // Handle Infographic Generation
+      if (selectedFormats.visual.infographic) {
+        try {
+          console.log('Generating Infographic...');
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const canvaResponse = await fetch("http://127.0.0.1:5000/api/canva/generate-infographic", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (canvaResponse.ok) {
+            const canvaData = await canvaResponse.json();
+            enrichedResult.formats.infographic = {
+              type: 'Infographic',
+              description: 'AI-generated visual summary',
+              data: canvaData, // Contains url and image_data
+              icon: '✨'
+            };
+            console.log('Infographic generated successfully');
+          } else {
+            console.error('Failed to generate infographic');
+          }
+        } catch (canvaErr) {
+          console.error('Error generating infographic:', canvaErr);
+        }
+      }
       console.log('Enriched result structure:', enrichedResult);
       console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
       console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
       console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
-      
+
       let finalResult;
       if (generatedResult && generatedResult.title === title) {
         console.log('✅ Merging with existing formats for the same file');
@@ -219,13 +248,13 @@ export default function Upload() {
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
-      
-      
+
+
       saveResultToLocalStorage(finalResult);
-      
-      
+
+
       console.log('✅ Content generated successfully. All formats available in Generated Content section.');
-      
+
     } catch (err) {
       console.error('❌ Generation error:', err);
       setError(err.message || 'Failed to generate. Please try again.');
@@ -260,6 +289,14 @@ export default function Upload() {
 
   const handleSubOptionClick = (subOptionKey) => {
     if (subOptionKey === 'mindmap') {
+      setSelectedFormats((prev) => ({
+        ...prev,
+        visual: {
+          ...prev.visual,
+          [subOptionKey]: !prev.visual[subOptionKey],
+        },
+      }));
+    } else if (subOptionKey === 'infographic') {
       setSelectedFormats((prev) => ({
         ...prev,
         visual: {
@@ -316,10 +353,18 @@ export default function Upload() {
     setIsSummaryMinimized(false);
   };
 
+  const handleMaximizeInfographic = () => {
+    setShowInfographicModal(true);
+  };
+
+  const handleCloseInfographic = () => {
+    setShowInfographicModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* Mind Map Modal - Full Screen */}
         {showMindMapModal && !isMindMapMinimized && generatedResult?.formats?.visual?.data && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -422,6 +467,67 @@ export default function Upload() {
           </div>
         )}
 
+        {/* Infographic Modal */}
+        {showInfographicModal && generatedResult?.formats?.infographic?.data && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Infographic: {title}</h2>
+                  <p className="text-sm text-gray-500">AI-generated visual summary</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCloseInfographic}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-gray-50">
+                <img
+                  src={generatedResult.formats.infographic.data.image_data}
+                  alt="Infographic"
+                  className="max-w-full h-auto shadow-lg rounded-lg"
+                />
+              </div>
+              <div className="p-4 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={async () => {
+                    try {
+                      const { upload } = await import("@canva/asset");
+                      const { addElementAtPoint } = await import("@canva/design");
+
+                      const data = generatedResult.formats.infographic.data;
+                      const uploadResult = await upload({
+                        type: "image",
+                        mimeType: "image/jpeg",
+                        url: data.url,
+                        thumbnailUrl: data.url,
+                        aiDisclosure: "none",
+                      });
+                      await addElementAtPoint({
+                        type: "image",
+                        ref: uploadResult.ref,
+                        altText: { text: "Infographic", decorative: false },
+                      });
+                    } catch (e) {
+                      console.warn("Canva upload failed:", e);
+                      alert("Could not add to Canva design. Are you running inside Canva?");
+                    }
+                  }}
+                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Export to Canva
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Upload Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -448,11 +554,10 @@ export default function Upload() {
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
-                    file
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50'
-                  }`}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${file
+                    ? 'border-green-300 bg-green-50'
+                    : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
                 >
                   <input
                     ref={fileInputRef}
@@ -525,7 +630,7 @@ export default function Upload() {
                         isRecommended={isRecommended('visual')}
                         isSelected={showVisualSubOptions}
                       />
-                      
+
                       {/*Visual Sub-Options*/}
                       {showVisualSubOptions && (
                         <div className="mt-2 space-y-2 animate-fade-in">
@@ -557,7 +662,6 @@ export default function Upload() {
                             icon={Sparkles}
                             onClick={() => handleSubOptionClick('infographic')}
                             isSelected={selectedFormats.visual.infographic}
-                            isComingSoon={true}
                           />
                         </div>
                       )}
@@ -572,7 +676,7 @@ export default function Upload() {
                         isRecommended={isRecommended('quiz')}
                         isSelected={selectedFormats.quiz}
                       />
-                      
+
                       {/* Quiz Options */}
                       {showQuizOptions && selectedFormats.quiz && (
                         <div className="mt-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg animate-fade-in">
@@ -628,7 +732,7 @@ export default function Upload() {
                       isComingSoon={true}
                     />
 
-                    
+
 
                   </div>
 
@@ -660,8 +764,8 @@ export default function Upload() {
                       {Object.keys(generatedResult.formats).length} format{Object.keys(generatedResult.formats).length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  
-               
+
+
 
                   <div className="space-y-3">
                     {/* Minimized Mind Map Card */}
@@ -768,6 +872,77 @@ export default function Upload() {
                               aria-label="View"
                             >
                               <Maximize2 className="w-4 h-4 text-emerald-600" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Infographic Card */}
+                    {generatedResult?.formats?.infographic?.data && (
+                      <div className="bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-lg p-4 animate-fade-in">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                                <Sparkles className="w-5 h-5 text-pink-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
+                                <p className="text-xs text-gray-600">Generated from content</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Preview Image */}
+                          <div className="mt-2 group relative cursor-pointer" onClick={handleMaximizeInfographic}>
+                            <img
+                              src={generatedResult.formats.infographic.data.image_data}
+                              alt="Infographic Preview"
+                              className="w-full h-32 object-cover rounded-md border border-pink-200 hover:opacity-90 transition-opacity"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-md">
+                              <Maximize2 className="w-8 h-8 text-white drop-shadow-md" />
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={handleMaximizeInfographic}
+                              className="flex-1 px-3 py-2 bg-white border border-pink-200 text-pink-700 hover:bg-pink-50 text-xs font-medium rounded transition-colors"
+                            >
+                              View Full Size
+                            </button>
+
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const { upload } = await import("@canva/asset");
+                                  const { addElementAtPoint } = await import("@canva/design");
+
+                                  const data = generatedResult.formats.infographic.data;
+                                  const uploadResult = await upload({
+                                    type: "image",
+                                    mimeType: "image/jpeg",
+                                    url: data.url,
+                                    thumbnailUrl: data.url,
+                                    aiDisclosure: "none",
+                                  });
+                                  await addElementAtPoint({
+                                    type: "image",
+                                    ref: uploadResult.ref,
+                                    altText: { text: "Infographic", decorative: false },
+                                  });
+                                } catch (e) {
+                                  console.warn("Canva upload failed:", e);
+                                  alert("Could not add to Canva design. Are you running inside Canva?");
+                                }
+                              }}
+                              className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center"
+                              title="Add to Canva"
+                            >
+                              <Sparkles className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -882,11 +1057,10 @@ const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, i
   return (
     <button
       onClick={onClick}
-      className={`w-full relative p-4 rounded-lg border text-left transition-all ${
-        isSelected
-          ? `${colors.border} ${colors.bg}`
-          : 'border-gray-200 hover:border-gray-300 bg-white'
-      } ${isComingSoon ? 'opacity-70' : ''}`}
+      className={`w-full relative p-4 rounded-lg border text-left transition-all ${isSelected
+        ? `${colors.border} ${colors.bg}`
+        : 'border-gray-200 hover:border-gray-300 bg-white'
+        } ${isComingSoon ? 'opacity-70' : ''}`}
     >
       {isRecommended && (
         <span className="absolute -top-2 -right-2 flex items-center px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold">
@@ -899,7 +1073,7 @@ const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, i
           Soon
         </span>
       )}
-      
+
       <div className="flex items-center">
         <div className={`w-10 h-10 rounded-lg ${colors.iconBg} flex items-center justify-center mr-3`}>
           <Icon className={`w-5 h-5 ${colors.iconText}`} />
@@ -917,11 +1091,10 @@ const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, i
 const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon }) => (
   <button
     onClick={onClick}
-    className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center ${
-      isSelected
-        ? 'bg-purple-50 border border-purple-200'
-        : 'hover:bg-gray-50 border border-transparent'
-    } ${isComingSoon ? 'opacity-60' : ''}`}
+    className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center ${isSelected
+      ? 'bg-purple-50 border border-purple-200'
+      : 'hover:bg-gray-50 border border-transparent'
+      } ${isComingSoon ? 'opacity-60' : ''}`}
   >
     <Icon className="w-4 h-4 text-purple-600 mr-3" />
     <span className="flex-1 font-medium text-gray-800 text-sm">{title}</span>
@@ -931,11 +1104,10 @@ const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon })
       </span>
     )}
     {!isComingSoon && (
-      <div className={`w-4 h-4 rounded flex items-center justify-center border ${
-        isSelected
-          ? 'bg-purple-600 border-purple-600'
-          : 'border-gray-300'
-      }`}>
+      <div className={`w-4 h-4 rounded flex items-center justify-center border ${isSelected
+        ? 'bg-purple-600 border-purple-600'
+        : 'border-gray-300'
+        }`}>
         {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
       </div>
     )}

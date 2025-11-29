@@ -39,6 +39,9 @@ def create_app():
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(upload_bp, url_prefix='/api')
     
+    from .api.canva import canva_bp
+    app.register_blueprint(canva_bp, url_prefix='/api/canva')
+    
     @app.route('/health')
     def health_check():
         return jsonify({"status": "healthy", "message": "Backend is working!"})

@@ -259,3 +259,68 @@ def generate_quiz_from_text(text_content, num_questions=5):
             ]
         }
 
+
+def generate_infographic_data_from_text(text_content):
+    """Generate structured data for an infographic from text content"""
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    prompt = f"""
+    Analyze the following text and extract key information suitable for a visual infographic.
+    
+    CRITICAL INSTRUCTION: 
+    - You must ONLY use the information present in the "Text to analyze" section below. 
+    - Do NOT use your own external knowledge or hallucinate facts not present in the text.
+    - If a specific piece of information (like stats) is not in the text, do NOT invent it. Instead, focus on the qualitative key points found in the text.
+    
+    Format your response as a JSON object with this exact structure:
+    {{
+        "title": "Catchy Title (derived from text)",
+        "subtitle": "Brief subtitle or context",
+        "stats": [
+            {{"label": "Stat Label", "value": "Value"}} 
+        ],
+        "key_points": [
+            {{"title": "Point 1", "description": "Short description"}},
+            {{"title": "Point 2", "description": "Short description"}},
+            {{"title": "Point 3", "description": "Short description"}}
+        ],
+        "conclusion": "Short concluding sentence"
+    }}
+
+    IMPORTANT:
+    - Extract at most 3 key stats IF they exist in the text. If no numbers are found, leave the stats array empty or extract short 1-2 word qualitative facts.
+    - Extract exactly 3 key points.
+    - Keep text concise, punchy, and modern.
+
+    Text to analyze:
+    ---
+    {text_content}
+    ---
+    
+    Return ONLY the JSON object.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        raw_response = response.text or ''
+        cleaned_response = clean_json_response(raw_response)
+        
+        try:
+            return json.loads(cleaned_response)
+        except json.JSONDecodeError:
+            return {
+                "title": "Infographic Generation Failed",
+                "subtitle": "Could not parse data",
+                "stats": [],
+                "key_points": [{"title": "Error", "description": "Please try again."}],
+                "conclusion": ""
+            }
+    except Exception as e:
+        print(f"Error generating infographic data: {e}")
+        return {
+            "title": "Error",
+            "subtitle": "System error",
+            "stats": [],
+            "key_points": [],
+            "conclusion": str(e)
+        }
