@@ -164,26 +164,22 @@ def upload_and_process():
                 "icon": "📄"
             }
 
+    # Get folder_id if present
+    folder_id = request.form.get('folder_id')
+    if folder_id == 'null' or folder_id == 'undefined':
+        folder_id = None
+
     # --- Store the results in Supabase ---
     try:
-        # Get user_id if authenticated (optional for now as per prompt, but good to have)
-        # For now we'll leave user_id null if not available or handle it if we had auth context
-        # The prompt says "nullable        # Get folder_id if present
-        folder_id = request.form.get('folder_id')
-        if folder_id == 'null' or folder_id == 'undefined':
-            folder_id = None
-
-        # --- Store the results in Supabase ---
-        try:
-            data_to_insert = {
-                "title": title,
-                "content": results_content,
-                "folder_id": folder_id
-            }
-            
-            print(f"Inserting into Supabase with folder_id: {folder_id}...")
-            response = supabase.table("results").insert(data_to_insert).execute()
+        data_to_insert = {
+            "title": title,
+            "content": results_content,
+            "folder_id": folder_id
+        }
         
+        print(f"Inserting into Supabase with folder_id: {folder_id}...")
+        response = supabase.table("results").insert(data_to_insert).execute()
+    
         if not response.data:
              raise Exception("No data returned from Supabase insert")
              

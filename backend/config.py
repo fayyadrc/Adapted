@@ -10,5 +10,6 @@ class Config:
     
     # Supabase Configuration
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
-    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+    # Use service_role key to bypass RLS, fallback to anon key
+    SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_KEY') or os.environ.get('SUPABASE_KEY')
 
