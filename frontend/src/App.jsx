@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Login from './components/Login';
@@ -9,28 +9,54 @@ import Results from './components/Results';
 import ResultDetail from './components/ResultDetail';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
+import HomePage from './components/HomePage';
+import LessonsPage from './components/LessonsPage';
 import './App.css';
 
 // Import test helpers for development/testing
 import './utils/testDataHelper';
 
+import { supabase } from './supabaseConfig';
+
 function App() {
-  // FOR TESTING: Start in logged-in state to bypass disabled login
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [user, setUser] = useState({ 
-    email: 'test@example.com', 
-    name: 'Test User' 
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleLogin = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
+    // This might be redundant if onAuthStateChange picks it up, but good for immediate UI feedback if needed
+    // Actually, Login.jsx calls this with a custom object, but onAuthStateChange gives us the full session user.
+    // Let's rely on onAuthStateChange for consistency, or update this to match.
+    // For now, let's keep it but rely on the effect.
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setIsLoggedIn(false);
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   // Protected route component
   const ProtectedRoute = ({ children }) => {
@@ -41,13 +67,29 @@ function App() {
     <Router>
       <div className="min-h-screen bg-white">
         <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} />
-        
+
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
 
           {/* Protected Routes */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage user={user} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lessons"
+            element={
+              <ProtectedRoute>
+                <LessonsPage user={user} />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
@@ -96,7 +138,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} />} />
+          <Route path="/" element={<Navigate to={isLoggedIn ? "/home" : "/login"} />} />
         </Routes>
       </div>
     </Router>

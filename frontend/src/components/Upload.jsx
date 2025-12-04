@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   UploadCloud,
   CheckCircle,
@@ -63,6 +64,8 @@ export default function Upload() {
   const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
   const [numQuestions, setNumQuestions] = useState(5);
   const fileInputRef = useRef(null);
+  const location = useLocation();
+  const folderId = location.state?.folderId;
 
   // State for format selection
   const [selectedFormats, setSelectedFormats] = useState({
@@ -156,8 +159,9 @@ export default function Upload() {
       console.log('Selected formats:', selectedFormats);
       console.log('Formats to generate:', formatsToGenerate);
       console.log('Number of questions:', numQuestions);
+      console.log('Folder ID:', folderId);
 
-      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions);
+      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions, folderId);
       console.log('Raw backend response:', data);
       console.log('Response keys:', Object.keys(data));
       console.log('Has formats key?', 'formats' in data);

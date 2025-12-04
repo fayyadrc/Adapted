@@ -241,12 +241,41 @@ def generate_infographic():
         img.save(buf, format='JPEG')
         buf.seek(0)
         
-        # Convert to base64 for frontend display
+        # Upload to Supabase Storage
+        from flask import current_app
+        from supabase import create_client
+        import uuid
+
+        url = current_app.config.get('SUPABASE_URL')
+        key = current_app.config.get('SUPABASE_KEY')
+        
+        public_url = "https://www.canva.dev/example-assets/image-import/image.jpg" # Fallback
+        
+        if url and key:
+            try:
+                supabase = create_client(url, key)
+                filename = f"infographic-{uuid.uuid4()}.jpg"
+                bucket_name = "generated-content"
+                
+                supabase.storage.from_(bucket_name).upload(
+                    path=filename,
+                    file=buf.getvalue(),
+                    file_options={"content-type": "image/jpeg"}
+                )
+                
+                public_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+                print(f"Infographic uploaded to: {public_url}")
+            except Exception as upload_err:
+                print(f"Failed to upload infographic: {upload_err}")
+                # Fallback to base64 if upload fails
+                img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
+                public_url = f"data:image/jpeg;base64,{img_str}"
+
+        # Convert to base64 for immediate frontend display (optional, but good for speed)
+        # We can still return base64 for immediate rendering while providing the URL for saving
+        buf.seek(0)
         img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
         base64_url = f"data:image/jpeg;base64,{img_str}"
-        
-        # Placeholder public URL for Canva
-        public_url = "https://www.canva.dev/example-assets/image-import/image.jpg"
         
         return jsonify({
             "message": "Infographic generated successfully",

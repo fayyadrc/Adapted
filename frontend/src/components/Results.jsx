@@ -2,45 +2,40 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FileText, Calendar, Eye, Trash2, Brain, FileQuestion, BookText } from 'lucide-react';
 
-// Helper function to load results from localStorage
-const loadResultsFromLocalStorage = () => {
-  try {
-    const results = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-    return results;
-  } catch (error) {
-    console.error('Failed to load results from localStorage:', error);
-    return [];
-  }
-};
+import apiService from '../services/apiService';
 
-// Helper function to delete a result from localStorage
-const deleteResultFromLocalStorage = (id) => {
-  try {
-    const results = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-    const filtered = results.filter(r => r.id !== id);
-    localStorage.setItem('adapted:results', JSON.stringify(filtered));
-    return filtered;
-  } catch (error) {
-    console.error('Failed to delete result from localStorage:', error);
-    return [];
-  }
-};
 
 export default function Results() {
   const navigate = useNavigate();
   const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load results from localStorage
-    const savedResults = loadResultsFromLocalStorage();
-    setResults(savedResults);
+    loadResults();
   }, []);
 
-  const handleDelete = (id, e) => {
+  const loadResults = async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getResults();
+      setResults(data);
+    } catch (error) {
+      console.error('Failed to load results:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, e) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this result?')) {
-      const updatedResults = deleteResultFromLocalStorage(id);
-      setResults(updatedResults);
+      try {
+        await apiService.deleteResult(id);
+        setResults(prev => prev.filter(r => r.id !== id));
+      } catch (error) {
+        console.error('Failed to delete result:', error);
+        alert('Failed to delete result. Please try again.');
+      }
     }
   };
 
@@ -50,9 +45,9 @@ export default function Results() {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -60,7 +55,7 @@ export default function Results() {
   };
 
   const getFormatIcon = (formatKey) => {
-    switch(forwmatKey) {
+    switch (formatKey) {
       case 'visual':
         return <Brain className="w-4 h-4" />;
       case 'quiz':
@@ -73,7 +68,7 @@ export default function Results() {
   };
 
   const getFormatBadgeColor = (formatKey) => {
-    switch(formatKey) {
+    switch (formatKey) {
       case 'visual':
         return 'bg-purple-100 text-purple-700';
       case 'quiz':
@@ -86,7 +81,7 @@ export default function Results() {
   };
 
   const getFormatLabel = (formatKey) => {
-    switch(formatKey) {
+    switch (formatKey) {
       case 'visual':
         return 'Mind Map';
       case 'quiz':
@@ -97,6 +92,17 @@ export default function Results() {
         return formatKey;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading results...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (results.length === 0) {
     return (
@@ -149,7 +155,7 @@ export default function Results() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {results.map((result) => (
-                <tr 
+                <tr
                   key={result.id}
                   className="hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleViewResult(result)}
@@ -167,7 +173,7 @@ export default function Results() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {formatDate(result.uploadedAt)}
+                      {formatDate(result.created_at || result.uploadedAt)}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -222,10 +228,10 @@ export default function Results() {
                   </h3>
                 </div>
               </div>
-              
+
               <div className="flex items-center text-sm text-gray-500 mb-3">
                 <Calendar className="w-4 h-4 mr-2" />
-                {formatDate(result.uploadedAt)}
+                {formatDate(result.created_at || result.uploadedAt)}
               </div>
 
               <div className="flex flex-wrap gap-2 mb-3">

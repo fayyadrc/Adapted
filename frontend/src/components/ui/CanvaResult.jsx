@@ -6,6 +6,7 @@ export function CanvaResult() {
     const [error, setError] = useState(null);
 
     const [generatedImage, setGeneratedImage] = useState(null);
+    const [imageUrl, setImageUrl] = useState(null);
     const [file, setFile] = useState(null);
 
     async function handleGenerateAndAdd() {
@@ -37,6 +38,7 @@ export function CanvaResult() {
 
             console.log("Generated Image URL:", imageUrl);
             setGeneratedImage(imageData);
+            setImageUrl(imageUrl);
 
             // 2. Upload the image to Canva
             // The 'url' must be publicly accessible.
@@ -104,14 +106,42 @@ export function CanvaResult() {
                 </div>
             )}
 
-            <button
-                onClick={handleGenerateAndAdd}
-                disabled={loading || !file}
-                className={`px-4 py-2 rounded text-white ${loading || !file ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-            >
-                {loading ? "Processing..." : "Generate & Add to Canva"}
-            </button>
+            <div className="flex gap-2 mt-4">
+                <button
+                    onClick={handleGenerateAndAdd}
+                    disabled={loading || !file}
+                    className={`px-4 py-2 rounded text-white ${loading || !file ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                        }`}
+                >
+                    {loading ? "Processing..." : "Generate & Add to Canva"}
+                </button>
+
+                {generatedImage && (
+                    <button
+                        onClick={async () => {
+                            try {
+                                const { supabase } = await import('../../supabaseConfig');
+                                const { error } = await supabase
+                                    .from('learnings')
+                                    .insert([
+                                        {
+                                            title: file.name.replace(/\.[^/.]+$/, ""),
+                                            infographic_image_url: imageUrl,
+                                        }
+                                    ]);
+                                if (error) throw error;
+                                alert("Saved to database!");
+                            } catch (e) {
+                                console.error(e);
+                                alert("Failed to save: " + e.message);
+                            }
+                        }}
+                        className="px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700"
+                    >
+                        Save to Database
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

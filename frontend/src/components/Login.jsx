@@ -34,12 +34,12 @@ export default function Login({ onLogin }) {
 
       if (data.user) {
         // Store user info and navigate to dashboard
-        onLogin({ 
-          email: data.user.email, 
+        onLogin({
+          email: data.user.email,
           name: data.user.user_metadata?.name || email.split('@')[0],
           id: data.user.id
         });
-        navigate('/dashboard');
+        navigate('/home');
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');

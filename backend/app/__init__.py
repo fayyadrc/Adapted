@@ -39,8 +39,14 @@ def create_app():
     app.register_blueprint(assessment_bp, url_prefix='/api/assessment')
     app.register_blueprint(upload_bp, url_prefix='/api')
     
+    from .api.image_upload import image_upload_bp
+    app.register_blueprint(image_upload_bp, url_prefix='/api')
+    
     from .api.canva import canva_bp
     app.register_blueprint(canva_bp, url_prefix='/api/canva')
+
+    from .api.folders import folders_bp
+    app.register_blueprint(folders_bp, url_prefix='/api')
     
     @app.route('/health')
     def health_check():

@@ -38,9 +38,69 @@ class ApiService {
 
   async getResult(id) {
     const response = await fetch(`${API_BASE_URL}/results/${id}`);
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch result');
+    }
+
+    return response.json();
+  }
+
+  async getResults() {
+    const response = await fetch(`${API_BASE_URL}/results`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch results');
+    }
+
+    return response.json();
+  }
+
+  async deleteResult(id) {
+    const response = await fetch(`${API_BASE_URL}/results/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete result');
+    }
+
+    return response.json();
+  }
+
+  async createFolder(name, userId, color) {
+    const response = await fetch(`${API_BASE_URL}/folders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, user_id: userId, color }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create folder');
+    }
+
+    return response.json();
+  }
+
+  async getFolders(userId) {
+    const response = await fetch(`${API_BASE_URL}/folders?user_id=${userId}`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch folders');
+    }
+
+    return response.json();
+  }
+
+  async deleteFolder(id) {
+    const response = await fetch(`${API_BASE_URL}/folders/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete folder');
     }
 
     return response.json();

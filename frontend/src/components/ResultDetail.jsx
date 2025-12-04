@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
+import apiService from '../services/apiService';
 
 const LAST_RESULT_STORAGE_KEY = 'adapted:last-result';
 
@@ -50,37 +51,8 @@ const formatAbsoluteDate = (iso) => {
   });
 };
 
-const loadCachedResult = () => {
-  if (typeof window === 'undefined') return null;
-  const raw = window.sessionStorage.getItem(LAST_RESULT_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    console.warn('Unable to parse cached result payload', err);
-    return null;
-  }
-};
 
-const loadResultFromLocalStorage = (id) => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const results = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-    return results.find(r => r.id === id) || null;
-  } catch (err) {
-    console.warn('Unable to load result from localStorage', err);
-    return null;
-  }
-};
 
-const persistResult = (payload) => {
-  if (typeof window === 'undefined' || !payload) return;
-  try {
-    window.sessionStorage.setItem(LAST_RESULT_STORAGE_KEY, JSON.stringify(payload));
-  } catch (err) {
-    console.warn('Unable to persist result payload', err);
-  }
-};
 
 export default function ResultDetail() {
   const { id } = useParams();
@@ -89,36 +61,41 @@ export default function ResultDetail() {
 
   const [result, setResult] = useState(() => {
     if (location.state) return location.state;
-    const cached = loadCachedResult();
-    if (cached) return cached;
-    // Try to load from localStorage using the ID from params
-    return loadResultFromLocalStorage(id);
+    return null;
   });
+
   const [bookmarked, setBookmarked] = useState(false);
   const [shareStatus, setShareStatus] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (location.state) {
       setResult(location.state);
-      persistResult(location.state);
     } else if (!result && id) {
-      // Try to load from localStorage if not in state
-      const stored = loadResultFromLocalStorage(id);
-      if (stored) {
-        setResult(stored);
-        persistResult(stored);
-      }
+      // Fetch from API
+      setLoading(true);
+      apiService.getResult(id)
+        .then(data => {
+          setResult(data);
+        })
+        .catch(err => {
+          console.error("Failed to fetch result:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [location.state, id, result]);
 
+
   const relativeUploadTime = useMemo(
-    () => formatRelativeTime(result?.uploadedAt || result?.uploadDate),
-    [result?.uploadedAt, result?.uploadDate]
+    () => formatRelativeTime(result?.created_at || result?.uploadedAt || result?.uploadDate),
+    [result?.created_at, result?.uploadedAt, result?.uploadDate]
   );
 
   const absoluteUploadTime = useMemo(
-    () => formatAbsoluteDate(result?.uploadedAt || result?.uploadDate),
-    [result?.uploadedAt, result?.uploadDate]
+    () => formatAbsoluteDate(result?.created_at || result?.uploadedAt || result?.uploadDate),
+    [result?.created_at, result?.uploadedAt, result?.uploadDate]
   );
 
   const handleBookmark = () => {
@@ -153,6 +130,17 @@ export default function ResultDetail() {
   const handleResetView = () => {
     viewerRef.current?.resetView?.();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading result...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!result) {
     return (
@@ -190,11 +178,10 @@ export default function ResultDetail() {
             <div className="flex gap-2">
               <button
                 onClick={handleBookmark}
-                className={`p-2 rounded-lg transition-colors ${
-                  bookmarked
-                    ? 'bg-purple-100 text-purple-600'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`p-2 rounded-lg transition-colors ${bookmarked
+                  ? 'bg-purple-100 text-purple-600'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 title="Bookmark this result"
               >
                 <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">

@@ -18,10 +18,12 @@ import ReactFlow, {
   Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import dagre from 'dagre'; // 1. Import dagre
-import { Download, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import dagre from 'dagre';
+import { Download, Maximize2, Minimize2, RefreshCw, Save } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { supabase } from '../supabaseConfig';
 
-// --- Custom MindMapNode (Same as before, with Handles) ---
+// --- Custom MindMapNode ---
 const MindMapNode = ({ data }) => {
   let nodeClasses = 'px-6 py-4 shadow-md rounded-lg border-2 max-w-xs ';
   let topicClasses = 'font-semibold text-base ';
@@ -69,14 +71,12 @@ const MindMapNode = ({ data }) => {
     </>
   );
 };
-// --- End Custom Node ---
 
 const nodeTypes = {
   mindMapNode: MindMapNode,
 };
 
-// 2. --- Dagre Auto-Layout Logic ---
-// These are arbitrary numbers, tweak them to change spacing
+// --- Dagre Auto-Layout Logic ---
 const nodeWidth = 350;
 const nodeHeight = 100;
 
@@ -100,8 +100,6 @@ const getLayoutedElements = (nodes, edges, direction = 'LR') => {
     node.targetPosition = Position.Left;
     node.sourcePosition = Position.Right;
 
-    // We are shifting the dagre node position (anchor=center) to the top-left
-    // so it matches react-flow's anchor point (top-left).
     node.position = {
       x: nodeWithPosition.x - nodeWidth / 2,
       y: nodeWithPosition.y - nodeHeight / 2,
@@ -112,8 +110,6 @@ const getLayoutedElements = (nodes, edges, direction = 'LR') => {
 
   return { nodes, edges };
 };
-// --- End Dagre Logic ---
-
 
 const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -121,8 +117,8 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
   const previousOverflowRef = useRef('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const reactFlowInstance = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 3. --- Updated Effect (now useLayoutEffect) ---
   useLayoutEffect(() => {
     if (!mindMapData || !mindMapData.root) return;
 
@@ -237,6 +233,64 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleSaveToDatabase = async () => {
+    if (!reactFlowInstance.current) return;
+    setIsSaving(true);
+    try {
+      const flowElement = document.querySelector('.react-flow');
+      if (!flowElement) throw new Error("Flow element not found");
+
+      const dataUrl = await toPng(flowElement, {
+        backgroundColor: '#f1f5f9',
+        width: flowElement.offsetWidth * 2,
+        height: flowElement.offsetHeight * 2,
+        style: {
+          width: flowElement.offsetWidth + 'px',
+          height: flowElement.offsetHeight + 'px',
+          transform: 'scale(2)',
+          transformOrigin: 'top left'
+        }
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+
+      const formData = new FormData();
+      formData.append('file', blob, 'mindmap.png');
+
+      const uploadRes = await fetch('http://localhost:5000/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error("Failed to upload image");
+
+      const uploadData = await uploadRes.json();
+      const publicUrl = uploadData.url;
+      console.log("Uploaded to:", publicUrl);
+
+      const { error: dbError } = await supabase
+        .from('learnings')
+        .insert([
+          {
+            title: mindMapData.root?.topic || 'Untitled Mind Map',
+            mindmap_image_url: publicUrl,
+            mindmap_data: mindMapData,
+          }
+        ]);
+
+      if (dbError) throw dbError;
+
+      alert("Mind Map saved to database successfully!");
+
+    } catch (err) {
+      console.error("Error saving to database:", err);
+      alert("Failed to save to database: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleToggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);
   };
@@ -253,7 +307,6 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
   }));
 
   if (!mindMapData || !mindMapData.root) {
-    // ... (rest of the component is the same) ...
     return (
       <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 h-48 flex items-center justify-center">
         <div className="text-center">
@@ -323,6 +376,14 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
         </ReactFlow>
 
         <div className="pointer-events-none absolute top-4 right-4 z-10 flex flex-col gap-2">
+          <button
+            onClick={handleSaveToDatabase}
+            disabled={isSaving}
+            className="pointer-events-auto p-2 bg-white border rounded-md shadow hover:bg-gray-100 transition disabled:opacity-50"
+            title="Save to Database"
+          >
+            <Save className={`w-5 h-5 ${isSaving ? 'text-gray-400' : 'text-indigo-600'}`} />
+          </button>
           <button
             onClick={handleDownload}
             className="pointer-events-auto p-2 bg-white border rounded-md shadow hover:bg-gray-100 transition"
