@@ -2,7 +2,7 @@
 
 // Central backend base URL
 // Keep this as the single source of truth for frontend -> backend calls
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 class ApiService {
   async uploadFile(file, title, formats, numQuestions = 5) {

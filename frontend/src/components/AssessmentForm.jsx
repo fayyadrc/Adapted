@@ -54,7 +54,7 @@ const AssessmentForm = () => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/assessment/submit', {
+      const response = await fetch('http://localhost:5001/api/assessment/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
