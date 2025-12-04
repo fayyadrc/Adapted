@@ -210,7 +210,7 @@ export default function Upload() {
           const formData = new FormData();
           formData.append('file', file);
 
-          const canvaResponse = await fetch("http://127.0.0.1:5000/api/canva/generate-infographic", {
+          const canvaResponse = await fetch("http://localhost:5001/api/canva/generate-infographic", {
             method: "POST",
             body: formData,
           });
