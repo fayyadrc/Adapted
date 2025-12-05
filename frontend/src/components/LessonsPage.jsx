@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Folder, FileText, Plus, MoreVertical, X } from 'lucide-react';
+import { Folder, FileText, Plus, MoreVertical, X, FolderPlus, Trash2 } from 'lucide-react';
 import apiService from '../services/apiService';
 import { supabase } from '../supabaseConfig';
 
@@ -12,6 +12,8 @@ export default function LessonsPage({ user }) {
     const [showNewFolderModal, setShowNewFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [selectedFolderId, setSelectedFolderId] = useState(null);
+    const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
+    const [lessonToMove, setLessonToMove] = useState(null);
 
     useEffect(() => {
         if (user) {
@@ -65,6 +67,41 @@ export default function LessonsPage({ user }) {
 
     const handleNewLesson = () => {
         navigate('/upload', { state: { folderId: selectedFolderId } });
+    };
+
+    const handleOpenMoveToFolder = (e, lesson) => {
+        e.stopPropagation(); // Prevent row click
+        setLessonToMove(lesson);
+        setShowMoveToFolderModal(true);
+    };
+
+    const handleMoveToFolder = async (folderId) => {
+        if (!lessonToMove) return;
+
+        try {
+            await apiService.moveLessonToFolder(lessonToMove.id, folderId);
+            // Refresh lessons
+            await loadData(user.id);
+            setShowMoveToFolderModal(false);
+            setLessonToMove(null);
+        } catch (error) {
+            console.error('Failed to move lesson:', error);
+            alert(`Failed to move lesson: ${error.message}`);
+        }
+    };
+
+    const handleDeleteLesson = async (e, lessonId) => {
+        e.stopPropagation(); // Prevent row click
+        if (window.confirm('Are you sure you want to delete this lesson?')) {
+            try {
+                await apiService.deleteResult(lessonId);
+                // Refresh lessons
+                await loadData(user.id);
+            } catch (error) {
+                console.error('Failed to delete lesson:', error);
+                alert(`Failed to delete lesson: ${error.message}`);
+            }
+        }
     };
 
     const filteredLessons = selectedFolderId
@@ -179,9 +216,22 @@ export default function LessonsPage({ user }) {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button className="text-gray-400 hover:text-gray-600">
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={(e) => handleOpenMoveToFolder(e, lesson)}
+                                                    className="text-violet-600 hover:text-violet-800 flex items-center gap-1"
+                                                >
+                                                    <FolderPlus className="w-4 h-4" />
+                                                    <span className="hidden sm:inline">Add to Folder</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleDeleteLesson(e, lesson.id)}
+                                                    className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    <span className="hidden sm:inline">Delete</span>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -227,6 +277,64 @@ export default function LessonsPage({ user }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Move to Folder Modal */}
+            {showMoveToFolderModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Move to Folder</h3>
+                            <button
+                                onClick={() => {
+                                    setShowMoveToFolderModal(false);
+                                    setLessonToMove(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Select a folder for "{lessonToMove?.title}"
+                        </p>
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {folders.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    No folders available. Create one first!
+                                </div>
+                            ) : (
+                                folders.map((folder) => (
+                                    <button
+                                        key={folder.id}
+                                        onClick={() => handleMoveToFolder(folder.id)}
+                                        className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-violet-500 hover:bg-violet-50 transition-all duration-200 flex items-center gap-3"
+                                    >
+                                        <Folder className="w-5 h-5 text-blue-600" />
+                                        <div>
+                                            <div className="font-medium text-gray-900">{folder.name}</div>
+                                            <div className="text-xs text-gray-500">
+                                                {lessons.filter(l => l.folder_id === folder.id).length} items
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                            <button
+                                onClick={() => {
+                                    setShowMoveToFolderModal(false);
+                                    setShowNewFolderModal(true);
+                                }}
+                                className="w-full btn-secondary py-2 px-4 flex items-center justify-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Create New Folder
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -18,11 +18,10 @@ export default function HomePage({ user }) {
           </p>
         </div>
 
-        {/* Action Grid */}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* My Scores */}
           <Link
-            to="/results"
+            to="/assessment"
             className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all duration-200 flex flex-col items-center justify-center gap-4"
           >
             <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
@@ -44,7 +43,6 @@ export default function HomePage({ user }) {
 
           {/* Explore */}
           <Link
-            to="/upload"
             className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all duration-200 flex flex-col items-center justify-center gap-4"
           >
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center group-hover:bg-green-100 transition-colors">

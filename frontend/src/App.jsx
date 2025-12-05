@@ -42,10 +42,6 @@ function App() {
   }, []);
 
   const handleLogin = (userData) => {
-    // This might be redundant if onAuthStateChange picks it up, but good for immediate UI feedback if needed
-    // Actually, Login.jsx calls this with a custom object, but onAuthStateChange gives us the full session user.
-    // Let's rely on onAuthStateChange for consistency, or update this to match.
-    // For now, let's keep it but rely on the effect.
   };
 
   const handleLogout = async () => {
@@ -58,7 +54,7 @@ function App() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  // Protected route component
+
   const ProtectedRoute = ({ children }) => {
     return isLoggedIn ? children : <Navigate to="/login" />;
   };
@@ -66,7 +62,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-white">
-        <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} />
+        <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} user={user} />
 
         <Routes>
           {/* Public Routes */}

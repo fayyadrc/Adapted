@@ -1,9 +1,8 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { User, LogOut } from 'lucide-react';
 
-export default function Header({ isLoggedIn, onLogout }) {
-  const location = useLocation();
-
+export default function Header({ isLoggedIn, onLogout, user }) {
   return (
     <header className="w-full bg-white shadow-sm px-6 py-4">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -17,58 +16,37 @@ export default function Header({ isLoggedIn, onLogout }) {
         </Link>
 
         {isLoggedIn ? (
-          <nav className="flex items-center space-x-1">
-            <Link
-              to="/home"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${location.pathname === '/home'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/upload"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${location.pathname === '/upload'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-            >
-              Upload
-            </Link>
-            <Link
-              to="/assessment"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${location.pathname === '/assessment'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-            >
-              Assessment
-            </Link>
+          <div className="flex items-center gap-4">
+            {/* Profile Section */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-purple-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">
+                {user?.email || 'Account'}
+              </span>
+            </div>
+
+            {/* Logout Button */}
             <button
               onClick={onLogout}
-              className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
-              Logout
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
             </button>
-          </nav>
+          </div>
         ) : (
           <nav className="flex space-x-1">
             <Link
               to="/login"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${location.pathname === '/login'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
+              className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
             >
               Login
             </Link>
             <Link
               to="/signup"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${location.pathname === '/signup'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
+              className="px-4 py-2 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors"
             >
               Sign Up
             </Link>

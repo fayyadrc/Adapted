@@ -258,7 +258,7 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
       const formData = new FormData();
       formData.append('file', blob, 'mindmap.png');
 
-      const uploadRes = await fetch('http://localhost:5001/api/upload-image', {
+      const uploadRes = await fetch('http://localhost:5000/api/upload-image', {
         method: 'POST',
         body: formData,
       });

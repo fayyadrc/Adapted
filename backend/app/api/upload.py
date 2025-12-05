@@ -246,7 +246,7 @@ def list_results():
     """
     try:
         # Select specific fields to reduce payload size
-        response = supabase.table("results").select("id, title, created_at, content").order("created_at", desc=True).execute()
+        response = supabase.table("results").select("id, title, created_at, content, folder_id").order("created_at", desc=True).execute()
         
         if not response.data:
             return jsonify([]), 200
@@ -257,7 +257,8 @@ def list_results():
                 "id": record['id'],
                 "title": record['title'],
                 "created_at": record['created_at'],
-                "formats": record['content'].get('formats', {}) if record['content'] else {}
+                "formats": record['content'].get('formats', {}) if record['content'] else {},
+                "folder_id": record.get('folder_id')
             })
             
         return jsonify(results), 200
@@ -283,3 +284,26 @@ def delete_result(result_id):
     except Exception as e:
         print(f"Error deleting result: {e}")
         return jsonify({"error": f"Failed to delete result: {str(e)}"}), 500
+
+@upload_bp.route('/lessons/<lesson_id>/move', methods=['PATCH'])
+def move_lesson_to_folder(lesson_id):
+    """
+    Move a lesson (result) to a folder by updating its folder_id.
+    """
+    try:
+        data = request.get_json()
+        folder_id = data.get('folder_id')
+        
+        # folder_id can be None to remove from folder
+        response = supabase.table("results").update({
+            "folder_id": folder_id
+        }).eq("id", lesson_id).execute()
+        
+        if not response.data:
+            return jsonify({"error": "Lesson not found or could not be updated"}), 404
+            
+        return jsonify(response.data[0]), 200
+        
+    except Exception as e:
+        print(f"Error moving lesson to folder: {e}")
+        return jsonify({"error": f"Failed to move lesson: {str(e)}"}), 500

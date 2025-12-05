@@ -2,7 +2,7 @@
 
 // Central backend base URL
 // Keep this as the single source of truth for frontend -> backend calls
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
   async uploadFile(file, title, formats, numQuestions = 5) {
@@ -101,6 +101,22 @@ class ApiService {
 
     if (!response.ok) {
       throw new Error('Failed to delete folder');
+    }
+
+    return response.json();
+  }
+
+  async moveLessonToFolder(lessonId, folderId) {
+    const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}/move`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ folder_id: folderId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to move lesson to folder');
     }
 
     return response.json();

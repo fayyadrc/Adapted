@@ -4,6 +4,6 @@ from app import create_app
 app = create_app()
 
 if __name__ == "__main__":
-    # Runs the app in debug mode on port 5001
-    app.run(debug=True, port=5001)
+    # Runs the app in debug mode on port 5000
+    app.run(debug=True, port=5000)
 
