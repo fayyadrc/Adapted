@@ -48,7 +48,7 @@ export default function Dashboard({ user }) {
         {/* Welcome Section */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.name || user?.email}!
+            Welcome back, {user?.user_metadata?.name || user?.email?.split('@')[0] || 'Student'}!
           </h1>
           <p className="text-gray-600">
             Transform your learning materials into personalized formats
@@ -75,7 +75,7 @@ export default function Dashboard({ user }) {
           </Link>
 
           <Link
-            to="/results"
+            to="/library"
             className="card hover:shadow-md transition-shadow cursor-pointer group h-full"
           >
             <div className="flex items-start space-x-4">
@@ -85,8 +85,8 @@ export default function Dashboard({ user }) {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">View Results</h3>
-                <p className="text-sm text-gray-600">See transformations</p>
+                <h3 className="font-semibold text-gray-900">My Library</h3>
+                <p className="text-sm text-gray-600">View all content</p>
               </div>
             </div>
           </Link>
@@ -114,7 +114,7 @@ export default function Dashboard({ user }) {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Recent Results</h2>
             {recentResults.length > 0 && (
-              <Link to="/results" className="text-purple-600 hover:text-purple-700 font-medium text-sm">
+              <Link to="/library" className="text-purple-600 hover:text-purple-700 font-medium text-sm">
                 View all →
               </Link>
             )}

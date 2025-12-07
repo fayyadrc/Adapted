@@ -14,7 +14,6 @@ export default function Login({ onLogin }) {
     setError('');
     setLoading(true);
 
-    // Basic validation
     if (!email || !password) {
       setError('Please fill in all fields');
       setLoading(false);
@@ -22,7 +21,6 @@ export default function Login({ onLogin }) {
     }
 
     try {
-      // Sign in with Supabase
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -33,7 +31,6 @@ export default function Login({ onLogin }) {
       }
 
       if (data.user) {
-        // Store user info and navigate to dashboard
         onLogin({
           email: data.user.email,
           name: data.user.user_metadata?.name || email.split('@')[0],
@@ -49,10 +46,10 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="h-screen bg-gray-100 flex items-center justify-center px-4 overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-2xl">A</span>

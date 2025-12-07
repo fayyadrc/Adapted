@@ -32,13 +32,13 @@ export default function HomePage({ user }) {
 
           {/* My Lessons */}
           <Link
-            to="/lessons"
+            to="/library"
             className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-100 transition-all duration-200 flex flex-col items-center justify-center gap-4"
           >
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
               <BookOpen className="w-8 h-8 text-blue-600" />
             </div>
-            <span className="font-bold text-gray-900 text-xl">My Lessons</span>
+            <span className="font-bold text-gray-900 text-xl">My Library</span>
           </Link>
 
           {/* Explore */}
