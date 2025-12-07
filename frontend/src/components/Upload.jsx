@@ -18,7 +18,8 @@ import {
   Edit2,
   X,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Download
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import SummaryViewer from './SummaryViewer';
@@ -210,25 +211,25 @@ export default function Upload() {
           const formData = new FormData();
           formData.append('file', file);
 
-          const canvaResponse = await fetch("http://localhost:5000/api/canva/generate-infographic", {
+          const infographicResponse = await fetch("http://localhost:5000/api/infographic/generate", {
             method: "POST",
             body: formData,
           });
 
-          if (canvaResponse.ok) {
-            const canvaData = await canvaResponse.json();
+          if (infographicResponse.ok) {
+            const infographicData = await infographicResponse.json();
             enrichedResult.formats.infographic = {
               type: 'Infographic',
               description: 'AI-generated visual summary',
-              data: canvaData, // Contains url and image_data
+              data: infographicData, // Contains url and image_data
               icon: '✨'
             };
             console.log('Infographic generated successfully');
           } else {
             console.error('Failed to generate infographic');
           }
-        } catch (canvaErr) {
-          console.error('Error generating infographic:', canvaErr);
+        } catch (infographicErr) {
+          console.error('Error generating infographic:', infographicErr);
         }
       }
       console.log('Enriched result structure:', enrichedResult);
@@ -497,35 +498,28 @@ export default function Upload() {
                   className="max-w-full h-auto shadow-lg rounded-lg"
                 />
               </div>
-              <div className="p-4 border-t border-gray-200 flex justify-end">
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <a
+                  href={generatedResult.formats.infographic.data.image_data}
+                  download="infographic.jpg"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </a>
                 <button
-                  onClick={async () => {
-                    try {
-                      const { upload } = await import("@canva/asset");
-                      const { addElementAtPoint } = await import("@canva/design");
-
-                      const data = generatedResult.formats.infographic.data;
-                      const uploadResult = await upload({
-                        type: "image",
-                        mimeType: "image/jpeg",
-                        url: data.url,
-                        thumbnailUrl: data.url,
-                        aiDisclosure: "none",
-                      });
-                      await addElementAtPoint({
-                        type: "image",
-                        ref: uploadResult.ref,
-                        altText: { text: "Infographic", decorative: false },
-                      });
-                    } catch (e) {
-                      console.warn("Canva upload failed:", e);
-                      alert("Could not add to Canva design. Are you running inside Canva?");
+                  onClick={() => {
+                    const data = generatedResult.formats.infographic.data;
+                    if (data.url && !data.url.startsWith('data:')) {
+                      window.open(data.url, '_blank');
+                    } else {
+                      alert('Image saved locally. Use Download to save.');
                     }
                   }}
                   className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
-                  Export to Canva
+                  Open in New Tab
                 </button>
               </div>
             </div>
@@ -918,36 +912,15 @@ export default function Upload() {
                               View Full Size
                             </button>
 
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  const { upload } = await import("@canva/asset");
-                                  const { addElementAtPoint } = await import("@canva/design");
-
-                                  const data = generatedResult.formats.infographic.data;
-                                  const uploadResult = await upload({
-                                    type: "image",
-                                    mimeType: "image/jpeg",
-                                    url: data.url,
-                                    thumbnailUrl: data.url,
-                                    aiDisclosure: "none",
-                                  });
-                                  await addElementAtPoint({
-                                    type: "image",
-                                    ref: uploadResult.ref,
-                                    altText: { text: "Infographic", decorative: false },
-                                  });
-                                } catch (e) {
-                                  console.warn("Canva upload failed:", e);
-                                  alert("Could not add to Canva design. Are you running inside Canva?");
-                                }
-                              }}
+                            <a
+                              href={generatedResult.formats.infographic.data.image_data}
+                              download="infographic.jpg"
+                              onClick={(e) => e.stopPropagation()}
                               className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center"
-                              title="Add to Canva"
+                              title="Download Infographic"
                             >
-                              <Sparkles className="w-4 h-4" />
-                            </button>
+                              <Download className="w-4 h-4" />
+                            </a>
                           </div>
                         </div>
                       </div>

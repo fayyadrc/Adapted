@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_infographic_data_from_text
 matplotlib.use('Agg')
-canva_bp = Blueprint('canva', __name__)
+infographic_bp = Blueprint('infographic', __name__)
 
 # --- CONFIGURATION ---
 THEME = {
@@ -350,7 +350,7 @@ def create_infographic_image(data):
     # Final Crop
     return img.crop((0, 0, width, int(y_pos)))
 
-@canva_bp.route('/generate-infographic', methods=['POST'])
+@infographic_bp.route('/generate', methods=['POST'])
 def generate_infographic():
     try:
         text_content = ""

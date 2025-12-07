@@ -42,8 +42,8 @@ def create_app():
     from .api.image_upload import image_upload_bp
     app.register_blueprint(image_upload_bp, url_prefix='/api')
     
-    from .api.canva import canva_bp
-    app.register_blueprint(canva_bp, url_prefix='/api/canva')
+    from .api.infographic import infographic_bp
+    app.register_blueprint(infographic_bp, url_prefix='/api/infographic')
 
     from .api.folders import folders_bp
     app.register_blueprint(folders_bp, url_prefix='/api')
