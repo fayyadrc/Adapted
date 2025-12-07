@@ -5,12 +5,18 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
-  async uploadFile(file, title, formats, numQuestions = 5) {
+  async uploadFile(file, title, formats, numQuestions = 5, userId = null, folderId = null) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('formats', JSON.stringify(formats));
     formData.append('num_questions', numQuestions);
+    if (userId) {
+      formData.append('user_id', userId);
+    }
+    if (folderId) {
+      formData.append('folder_id', folderId);
+    }
 
     console.log('=== API SERVICE DEBUG ===');
     console.log('Sending to /api/upload:');
@@ -19,6 +25,8 @@ class ApiService {
     console.log('  formats:', formats);
     console.log('  formats JSON:', JSON.stringify(formats));
     console.log('  num_questions:', numQuestions);
+    console.log('  user_id:', userId);
+    console.log('  folder_id:', folderId);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
@@ -46,8 +54,11 @@ class ApiService {
     return response.json();
   }
 
-  async getResults() {
-    const response = await fetch(`${API_BASE_URL}/results`);
+  async getResults(userId = null) {
+    const url = userId 
+      ? `${API_BASE_URL}/results?user_id=${userId}`
+      : `${API_BASE_URL}/results`;
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error('Failed to fetch results');

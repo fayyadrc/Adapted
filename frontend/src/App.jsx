@@ -98,7 +98,7 @@ function App() {
             path="/upload"
             element={
               <ProtectedRoute>
-                <Upload />
+                <Upload user={user} />
               </ProtectedRoute>
             }
           />
@@ -114,7 +114,7 @@ function App() {
             path="/results"
             element={
               <ProtectedRoute>
-                <Results />
+                <Results user={user} />
               </ProtectedRoute>
             }
           />

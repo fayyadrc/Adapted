@@ -21,7 +21,6 @@ import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Download, Maximize2, Minimize2, RefreshCw, Save } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { supabase } from '../supabaseConfig';
 
 // --- Custom MindMapNode ---
 const MindMapNode = ({ data }) => {
@@ -267,25 +266,13 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
 
       const uploadData = await uploadRes.json();
       const publicUrl = uploadData.url;
-      console.log("Uploaded to:", publicUrl);
+      console.log("Mind map image uploaded to:", publicUrl);
 
-      const { error: dbError } = await supabase
-        .from('learnings')
-        .insert([
-          {
-            title: mindMapData.root?.topic || 'Untitled Mind Map',
-            mindmap_image_url: publicUrl,
-            mindmap_data: mindMapData,
-          }
-        ]);
-
-      if (dbError) throw dbError;
-
-      alert("Mind Map saved to database successfully!");
+      alert("Mind Map image saved successfully!");
 
     } catch (err) {
-      console.error("Error saving to database:", err);
-      alert("Failed to save to database: " + err.message);
+      console.error("Error saving mind map:", err);
+      alert("Failed to save: " + err.message);
     } finally {
       setIsSaving(false);
     }

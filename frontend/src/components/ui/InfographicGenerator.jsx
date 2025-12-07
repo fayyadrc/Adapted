@@ -102,29 +102,13 @@ export function InfographicGenerator() {
                 </button>
 
                 {generatedImage && (
-                    <button
-                        onClick={async () => {
-                            try {
-                                const { supabase } = await import('../../supabaseConfig');
-                                const { error } = await supabase
-                                    .from('learnings')
-                                    .insert([
-                                        {
-                                            title: file.name.replace(/\.[^/.]+$/, ""),
-                                            infographic_image_url: imageUrl,
-                                        }
-                                    ]);
-                                if (error) throw error;
-                                alert("Saved to database!");
-                            } catch (e) {
-                                console.error(e);
-                                alert("Failed to save: " + e.message);
-                            }
-                        }}
+                    <a
+                        href={generatedImage}
+                        download="infographic.jpg"
                         className="px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700"
                     >
-                        Save to Database
-                    </button>
+                        Download Image
+                    </a>
                 )}
             </div>
         </div>

@@ -23,33 +23,11 @@ import {
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import SummaryViewer from './SummaryViewer';
+import QuizViewer from './QuizViewer';
 
 import api from '../services/apiService';
 
-
-const saveResultToLocalStorage = (result) => {
-  try {
-    const existingResults = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-
-    // Check if a result with this ID already exists
-    const existingIndex = existingResults.findIndex(r => r.id === result.id);
-
-    if (existingIndex !== -1) {
-      // Update existing result
-      existingResults[existingIndex] = result;
-    } else {
-      // Add new result
-      existingResults.unshift(result); // Add to beginning of array
-    }
-
-    localStorage.setItem('adapted:results', JSON.stringify(existingResults));
-    console.log('✅ Result saved to localStorage');
-  } catch (error) {
-    console.error('Failed to save result to localStorage:', error);
-  }
-};
-
-export default function Upload() {
+export default function Upload({ user }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
@@ -160,9 +138,10 @@ export default function Upload() {
       console.log('Selected formats:', selectedFormats);
       console.log('Formats to generate:', formatsToGenerate);
       console.log('Number of questions:', numQuestions);
+      console.log('User ID:', user?.id);
       console.log('Folder ID:', folderId);
 
-      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions, folderId);
+      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions, user?.id, folderId);
       console.log('Raw backend response:', data);
       console.log('Response keys:', Object.keys(data));
       console.log('Has formats key?', 'formats' in data);
@@ -253,10 +232,6 @@ export default function Upload() {
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
-
-
-      saveResultToLocalStorage(finalResult);
-
 
       console.log('✅ Content generated successfully. All formats available in Generated Content section.');
 

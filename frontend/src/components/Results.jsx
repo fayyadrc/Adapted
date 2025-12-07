@@ -5,19 +5,19 @@ import { FileText, Calendar, Eye, Trash2, Brain, FileQuestion, BookText } from '
 import apiService from '../services/apiService';
 
 
-export default function Results() {
+export default function Results({ user }) {
   const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadResults();
-  }, []);
+  }, [user?.id]);
 
   const loadResults = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getResults();
+      const data = await apiService.getResults(user?.id);
       setResults(data);
     } catch (error) {
       console.error('Failed to load results:', error);

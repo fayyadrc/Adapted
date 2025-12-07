@@ -1,20 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import apiService from '../services/apiService';
 
 export default function Dashboard({ user }) {
   const [recentResults, setRecentResults] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load recent results from localStorage
-    try {
-      const results = JSON.parse(localStorage.getItem('adapted:results') || '[]');
-      // Get the 3 most recent results
-      setRecentResults(results.slice(0, 3));
-    } catch (error) {
-      console.error('Failed to load results:', error);
-      setRecentResults([]);
+    // Load recent results from Supabase API
+    const loadResults = async () => {
+      try {
+        setLoading(true);
+        const results = await apiService.getResults(user?.id);
+        // Get the 3 most recent results
+        setRecentResults(results.slice(0, 3));
+      } catch (error) {
+        console.error('Failed to load results:', error);
+        setRecentResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (user?.id) {
+      loadResults();
+    } else {
+      setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
