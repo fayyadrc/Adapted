@@ -4,12 +4,11 @@ import io
 import base64
 import os
 import matplotlib
-# Set backend to Agg before importing pyplot to avoid GUI requirement errors
-matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_infographic_data_from_text
-
+matplotlib.use('Agg')
 canva_bp = Blueprint('canva', __name__)
 
 # --- CONFIGURATION ---
@@ -24,27 +23,47 @@ THEME = {
     'text_white': '#ffffff'
 }
 
-# --- HELPER: Font Loading ---
 def get_font(name, size):
-    """Robust font loader that handles missing system fonts gracefully."""
-    try:
-        if "Bold" in name:
-            try:
-                return ImageFont.truetype("Arial Bold.ttf", size)
-            except:
-                try:
-                    return ImageFont.truetype("Arialbd.ttf", size)
-                except:
-                    # Linux/Docker fallback
-                    return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
-        else:
-            try:
-                return ImageFont.truetype("Arial.ttf", size)
-            except:
-                return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
-    except:
-        # Absolute fallback to default bitmap font (will look pixelated but works)
-        return ImageFont.load_default()
+    """Robust font loader that handles missing system fonts gracefully across all platforms."""
+    import platform
+    system = platform.system()
+    
+    
+    if "Bold" in name:
+        font_candidates = [
+            #windows 
+            "C:\\Windows\\Fonts\\arialbd.ttf",
+            "C:\\Windows\\Fonts\\Arial Bold.ttf",
+            #macOS 
+            "/Library/Fonts/Arial Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "Arial Bold.ttf",
+            "Arialbd.ttf",
+            #for linux/docker
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        ]
+    else:
+        font_candidates = [
+            "C:\\Windows\\Fonts\\arial.ttf",
+            "C:\\Windows\\Fonts\\Arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "Arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        ]
+    
+    # Try each font path
+    for font_path in font_candidates:
+        try:
+            return ImageFont.truetype(font_path, size)
+        except (IOError, OSError):
+            continue
+    
+    # Absolute fallback to default bitmap font (will look pixelated but works)
+    print(f"Warning: Could not load any system font, using default. Platform: {system}")
+    return ImageFont.load_default()
 
 # --- HELPER: Text Wrapping Logic ---
 def wrap_text(text, font, max_width, draw):
