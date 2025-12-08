@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Header from './components/Header';
 import Login from './components/Login';
 import Signup from './components/Signup';
-import Dashboard from './components/Dashboard';
 import Upload from './components/Upload';
 import Library from './components/Library';
 import ResultDetail from './components/ResultDetail';
@@ -90,14 +89,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <ResultDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard user={user} />
               </ProtectedRoute>
             }
           />

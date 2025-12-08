@@ -279,27 +279,6 @@ export default function ResultDetail() {
               </span>
             )}
             <div className="flex gap-2">
-              <button
-                onClick={handleBookmark}
-                className={`p-2 rounded-lg transition-colors ${bookmarked
-                  ? 'bg-purple-100 text-purple-600'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                title="Bookmark this result"
-              >
-                <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-              </button>
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                title="Share this result"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.589 12.938 10 12.502 10 12c0-.502-.411-.938-1.316-1.342m0 2.684a3 3 0 110-2.684m9.032-6.674l-9.032 4.026m0 7.288l9.032-4.026M5.106 18.894l7.572-4.297m0-6.882l-7.572 4.297" />
-                </svg>
-              </button>
               <Link
                 to="/library"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"

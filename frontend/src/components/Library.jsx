@@ -1,19 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, Calendar, Eye, Trash2, Brain, FileQuestion, BookText, Image, 
   Sparkles, Search, Filter, Folder, Plus, MoreVertical, X, FolderPlus,
   ChevronLeft, Grid, List
 } from 'lucide-react';
-import apiService from '../services/apiService';
+import { 
+  useResults, 
+  useFolders, 
+  useDeleteResult, 
+  useCreateFolder, 
+  useDeleteFolder, 
+  useMoveLessonToFolder 
+} from '../hooks/useApi';
+import { 
+  PageTransition, 
+  StaggerContainer, 
+  StaggerItem,
+  AnimatedCard,
+  AnimatedButton,
+  Skeleton,
+  LoadingSpinner
+} from './ui/AnimatedComponents';
 
 export default function Library({ user }) {
   const navigate = useNavigate();
   
-  // Data states
-  const [folders, setFolders] = useState([]);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks - automatic caching, loading states, and mutations
+  const { data: folders = [], isLoading: foldersLoading } = useFolders(user?.id);
+  const { data: results = [], isLoading: resultsLoading } = useResults(user?.id);
+  const deleteResultMutation = useDeleteResult();
+  const createFolderMutation = useCreateFolder();
+  const deleteFolderMutation = useDeleteFolder();
+  const moveLessonMutation = useMoveLessonToFolder();
+  
+  const loading = foldersLoading || resultsLoading;
   
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,36 +50,13 @@ export default function Library({ user }) {
   const [itemToMove, setItemToMove] = useState(null);
   const [folderMenuOpen, setFolderMenuOpen] = useState(null);
 
-  useEffect(() => {
-    if (user?.id) {
-      loadData();
-    }
-  }, [user?.id]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [foldersData, resultsData] = await Promise.all([
-        apiService.getFolders(user.id),
-        apiService.getResults(user.id)
-      ]);
-      setFolders(foldersData || []);
-      setResults(resultsData || []);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Folder handlers
   const handleCreateFolder = async (e) => {
     e.preventDefault();
     if (!newFolderName.trim() || !user) return;
 
     try {
-      const newFolder = await apiService.createFolder(newFolderName, user.id);
-      setFolders([newFolder, ...folders]);
+      await createFolderMutation.mutateAsync({ name: newFolderName, userId: user.id });
       setNewFolderName('');
       setShowNewFolderModal(false);
     } catch (error) {
@@ -70,8 +69,7 @@ export default function Library({ user }) {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this folder? Items inside will be moved out.')) {
       try {
-        await apiService.deleteFolder(folderId);
-        setFolders(folders.filter(f => f.id !== folderId));
+        await deleteFolderMutation.mutateAsync(folderId);
         if (selectedFolderId === folderId) {
           setSelectedFolderId(null);
         }
@@ -88,8 +86,7 @@ export default function Library({ user }) {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
-        await apiService.deleteResult(id);
-        setResults(prev => prev.filter(r => r.id !== id));
+        await deleteResultMutation.mutateAsync(id);
       } catch (error) {
         console.error('Failed to delete result:', error);
         alert('Failed to delete. Please try again.');
@@ -111,8 +108,7 @@ export default function Library({ user }) {
     if (!itemToMove) return;
 
     try {
-      await apiService.moveLessonToFolder(itemToMove.id, folderId);
-      await loadData();
+      await moveLessonMutation.mutateAsync({ lessonId: itemToMove.id, folderId });
       setShowMoveToFolderModal(false);
       setItemToMove(null);
     } catch (error) {
@@ -124,8 +120,7 @@ export default function Library({ user }) {
   const handleRemoveFromFolder = async (e, item) => {
     e.stopPropagation();
     try {
-      await apiService.moveLessonToFolder(item.id, null);
-      await loadData();
+      await moveLessonMutation.mutateAsync({ lessonId: item.id, folderId: null });
     } catch (error) {
       console.error('Failed to remove from folder:', error);
     }
@@ -192,10 +187,15 @@ export default function Library({ user }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+        <motion.div 
+          className="text-center"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <LoadingSpinner size="lg" className="mx-auto mb-4" />
           <p className="text-gray-600">Loading your library...</p>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -203,80 +203,100 @@ export default function Library({ user }) {
   // Empty state
   if (results.length === 0 && folders.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
-            <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-12 h-12 text-purple-500" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-3">Start Your Learning Journey</h1>
-            <p className="text-gray-600 mb-8 max-w-md mx-auto">
-              Upload your first document and transform it into mind maps, quizzes, summaries, and more.
-            </p>
-            <Link 
-              to="/upload" 
-              className="inline-flex items-center px-8 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl font-medium"
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <motion.div 
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <FileText className="w-5 h-5 mr-2" />
-              Upload Your First Document
-            </Link>
+              <motion.div 
+                className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6"
+                animate={{ 
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+              >
+                <Sparkles className="w-12 h-12 text-purple-500" />
+              </motion.div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-3">Start Your Learning Journey</h1>
+              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                Upload your first document and transform it into mind maps, quizzes, summaries, and more.
+              </p>
+              <AnimatedButton className="inline-flex items-center px-8 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl font-medium">
+                <Link to="/upload" className="flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Upload Your First Document
+                </Link>
+              </AnimatedButton>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </PageTransition>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            {selectedFolderId ? (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setSelectedFolderId(null)}
-                  className="p-2 hover:bg-white rounded-lg transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
-                </button>
+    <PageTransition>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <motion.div 
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div>
+              {selectedFolderId ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedFolderId(null)}
+                    className="p-2 hover:bg-white rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">{selectedFolder?.name || 'Folder'}</h1>
+                    <p className="text-gray-600">
+                      {filteredResults.length} {filteredResults.length === 1 ? 'item' : 'items'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">{selectedFolder?.name || 'Folder'}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900">Your Library</h1>
                   <p className="text-gray-600">
-                    {filteredResults.length} {filteredResults.length === 1 ? 'item' : 'items'}
+                    {results.length} {results.length === 1 ? 'document' : 'documents'} • {folders.length} {folders.length === 1 ? 'folder' : 'folders'}
                   </p>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Your Library</h1>
-                <p className="text-gray-600">
-                  {results.length} {results.length === 1 ? 'document' : 'documents'} • {folders.length} {folders.length === 1 ? 'folder' : 'folders'}
-                </p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowNewFolderModal(true)}
-              className="inline-flex items-center px-4 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Folder
-            </button>
-            <Link
-              to="/upload"
-              state={{ folderId: selectedFolderId }}
-              className="inline-flex items-center px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors text-sm font-medium"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Upload
-            </Link>
-          </div>
-        </div>
+            <div className="flex items-center gap-3">
+              <AnimatedButton
+                onClick={() => setShowNewFolderModal(true)}
+                className="inline-flex items-center px-4 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Folder
+              </AnimatedButton>
+              <Link
+                to="/upload"
+                state={{ folderId: selectedFolderId }}
+              >
+                <AnimatedButton className="inline-flex items-center px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors text-sm font-medium">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Upload
+                </AnimatedButton>
+              </Link>
+            </div>
+          </motion.div>
 
-        {/* Search and Filter Bar */}
+          {/* Search and Filter Bar */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
@@ -327,15 +347,24 @@ export default function Library({ user }) {
 
         {/* Folders Section - Only show when not inside a folder */}
         {!selectedFolderId && folders.length > 0 && (
-          <div className="mb-8">
+          <motion.div 
+            className="mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
             <h2 className="text-lg font-semibold text-gray-700 mb-4">Folders</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {folders.map((folder) => (
-                <div
-                  key={folder.id}
-                  onClick={() => setSelectedFolderId(folder.id)}
-                  className="group bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-200 transition-all duration-200 cursor-pointer relative"
-                >
+            <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              <AnimatePresence>
+                {folders.map((folder) => (
+                  <StaggerItem key={folder.id}>
+                    <motion.div
+                      layout
+                      onClick={() => setSelectedFolderId(folder.id)}
+                      className="group bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-200 transition-all duration-200 cursor-pointer relative"
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
                   <div className="flex justify-between items-start mb-3">
                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
                       <Folder className="w-6 h-6 text-blue-600" />
@@ -367,10 +396,12 @@ export default function Library({ user }) {
                   <p className="text-xs text-gray-500 mt-1">
                     {results.filter(r => r.folder_id === folder.id).length} items
                   </p>
-                </div>
-              ))}
-            </div>
-          </div>
+                </motion.div>
+                  </StaggerItem>
+                ))}
+              </AnimatePresence>
+            </StaggerContainer>
+          </motion.div>
         )}
 
         {/* Results count after filter */}
@@ -407,13 +438,17 @@ export default function Library({ user }) {
             </div>
           ) : viewMode === 'grid' ? (
             /* Grid View */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredResults.map((result) => (
-                <div
-                  key={result.id}
-                  className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
-                  onClick={() => handleViewResult(result)}
-                >
+            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {filteredResults.map((result) => (
+                  <StaggerItem key={result.id}>
+                    <motion.div
+                      layout
+                      className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
+                      onClick={() => handleViewResult(result)}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
                   {/* Card Header with gradient */}
                   <div className="h-2 bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500"></div>
                   
@@ -483,12 +518,19 @@ export default function Library({ user }) {
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                </motion.div>
+                  </StaggerItem>
+                ))}
+              </AnimatePresence>
+            </StaggerContainer>
           ) : (
             /* List View */
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <motion.div 
+              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -499,12 +541,17 @@ export default function Library({ user }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredResults.map((result) => (
-                    <tr
-                      key={result.id}
-                      onClick={() => handleViewResult(result)}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
+                  <AnimatePresence>
+                    {filteredResults.map((result, index) => (
+                      <motion.tr
+                        key={result.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
+                        onClick={() => handleViewResult(result)}
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -550,138 +597,184 @@ export default function Library({ user }) {
                           </button>
                         </div>
                       </td>
-                    </tr>
-                  ))}
+                    </motion.tr>
+                    ))}
+                  </AnimatePresence>
                 </tbody>
               </table>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
+    </div>
 
       {/* New Folder Modal */}
-      {showNewFolderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Create New Folder</h3>
-              <button onClick={() => setShowNewFolderModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateFolder}>
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Folder name"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-4"
-                autoFocus
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowNewFolderModal(false)}
-                  className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
-                  disabled={!newFolderName.trim()}
-                >
-                  Create Folder
-                </button>
+      <AnimatePresence>
+        {showNewFolderModal && (
+          <>
+            <motion.div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNewFolderModal(false)}
+            />
+            <motion.div 
+              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Create New Folder</h3>
+                  <button onClick={() => setShowNewFolderModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleCreateFolder}>
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="Folder name"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-4"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-3">
+                    <AnimatedButton
+                      type="button"
+                      onClick={() => setShowNewFolderModal(false)}
+                      className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                    >
+                      Cancel
+                    </AnimatedButton>
+                    <AnimatedButton
+                      type="submit"
+                      className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium disabled:opacity-50"
+                      disabled={!newFolderName.trim() || createFolderMutation.isPending}
+                    >
+                      {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+                    </AnimatedButton>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Move to Folder Modal */}
-      {showMoveToFolderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Move to Folder</h3>
-              <button
-                onClick={() => {
-                  setShowMoveToFolderModal(false);
-                  setItemToMove(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Select a folder for "<span className="font-medium">{itemToMove?.title}</span>"
-            </p>
-            
-            {/* Remove from folder option */}
-            {itemToMove?.folder_id && (
-              <button
-                onClick={(e) => {
-                  handleRemoveFromFolder(e, itemToMove);
-                  setShowMoveToFolderModal(false);
-                  setItemToMove(null);
-                }}
-                className="w-full text-left p-4 mb-2 border border-gray-200 rounded-xl hover:border-red-300 hover:bg-red-50 transition-all duration-200 flex items-center gap-3"
-              >
-                <X className="w-5 h-5 text-red-500" />
-                <span className="text-red-600 font-medium">Remove from folder</span>
-              </button>
-            )}
-
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {folders.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No folders available. Create one first!
-                </div>
-              ) : (
-                folders.map((folder) => (
+      <AnimatePresence>
+        {showMoveToFolderModal && (
+          <>
+            <motion.div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowMoveToFolderModal(false);
+                setItemToMove(null);
+              }}
+            />
+            <motion.div 
+              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Move to Folder</h3>
                   <button
-                    key={folder.id}
-                    onClick={() => handleMoveToFolder(folder.id)}
-                    disabled={folder.id === itemToMove?.folder_id}
-                    className={`w-full text-left p-4 border rounded-xl transition-all duration-200 flex items-center gap-3
-                      ${folder.id === itemToMove?.folder_id 
-                        ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' 
-                        : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'}`}
+                    onClick={() => {
+                      setShowMoveToFolderModal(false);
+                      setItemToMove(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
                   >
-                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <Folder className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{folder.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {results.filter(r => r.folder_id === folder.id).length} items
-                      </div>
-                    </div>
-                    {folder.id === itemToMove?.folder_id && (
-                      <span className="ml-auto text-xs text-gray-400">Current</span>
-                    )}
+                    <X className="w-5 h-5" />
                   </button>
-                ))
-              )}
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowMoveToFolderModal(false);
-                  setShowNewFolderModal(true);
-                }}
-                className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create New Folder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select a folder for "<span className="font-medium">{itemToMove?.title}</span>"
+                </p>
+                
+                {/* Remove from folder option */}
+                {itemToMove?.folder_id && (
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={(e) => {
+                      handleRemoveFromFolder(e, itemToMove);
+                      setShowMoveToFolderModal(false);
+                      setItemToMove(null);
+                    }}
+                    className="w-full text-left p-4 mb-2 border border-gray-200 rounded-xl hover:border-red-300 hover:bg-red-50 transition-all duration-200 flex items-center gap-3"
+                  >
+                    <X className="w-5 h-5 text-red-500" />
+                    <span className="text-red-600 font-medium">Remove from folder</span>
+                  </motion.button>
+                )}
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {folders.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No folders available. Create one first!
+                    </div>
+                  ) : (
+                    folders.map((folder, index) => (
+                      <motion.button
+                        key={folder.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        onClick={() => handleMoveToFolder(folder.id)}
+                        disabled={folder.id === itemToMove?.folder_id || moveLessonMutation.isPending}
+                        className={`w-full text-left p-4 border rounded-xl transition-all duration-200 flex items-center gap-3
+                          ${folder.id === itemToMove?.folder_id 
+                            ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' 
+                            : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'}`}
+                      >
+                        <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <Folder className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{folder.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {results.filter(r => r.folder_id === folder.id).length} items
+                          </div>
+                        </div>
+                        {folder.id === itemToMove?.folder_id && (
+                          <span className="ml-auto text-xs text-gray-400">Current</span>
+                        )}
+                      </motion.button>
+                    ))
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <AnimatedButton
+                    onClick={() => {
+                      setShowMoveToFolderModal(false);
+                      setShowNewFolderModal(true);
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create New Folder
+                  </AnimatedButton>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Click outside to close folder menu */}
       {folderMenuOpen && (
@@ -690,6 +783,6 @@ export default function Library({ user }) {
           onClick={() => setFolderMenuOpen(null)}
         />
       )}
-    </div>
+    </PageTransition>
   );
 }
