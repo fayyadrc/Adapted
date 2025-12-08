@@ -106,15 +106,20 @@ class ApiService {
   }
 
   async deleteFolder(id) {
+    console.log('Deleting folder:', id);
     const response = await fetch(`${API_BASE_URL}/folders/${id}`, {
       method: 'DELETE',
     });
 
     if (!response.ok) {
-      throw new Error('Failed to delete folder');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Delete folder error:', errorData);
+      throw new Error(errorData.error || 'Failed to delete folder');
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('Folder deleted successfully:', data);
+    return data;
   }
 
   async moveLessonToFolder(lessonId, folderId) {

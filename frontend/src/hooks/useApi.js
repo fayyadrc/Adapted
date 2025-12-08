@@ -70,6 +70,10 @@ export function useDeleteFolder() {
     mutationFn: (id) => apiService.deleteFolder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+    },
+    onError: (error) => {
+      console.error('Delete folder mutation error:', error);
     },
   });
 }

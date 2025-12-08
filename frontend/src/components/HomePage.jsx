@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Trophy, Compass, Plus } from 'lucide-react';
 
 export default function HomePage({ user }) {
-  const userName = user?.name || 'Student';
+  const userName = user?.user_metadata?.name || user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student';
 
   return (
     <div className="min-h-screen bg-gray-50">

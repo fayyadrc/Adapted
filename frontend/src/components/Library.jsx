@@ -49,6 +49,53 @@ export default function Library({ user }) {
   const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
   const [itemToMove, setItemToMove] = useState(null);
   const [folderMenuOpen, setFolderMenuOpen] = useState(null);
+  
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverFolder, setDragOverFolder] = useState(null);
+
+  // Drag and drop handlers
+  const handleDragStart = (e, result) => {
+    e.stopPropagation();
+    setDraggedItem(result);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', result.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverFolder(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnterFolder = (folderId) => {
+    setDragOverFolder(folderId);
+  };
+
+  const handleDragLeaveFolder = () => {
+    setDragOverFolder(null);
+  };
+
+  const handleDropOnFolder = async (e, folderId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedItem) return;
+    
+    try {
+      await moveLessonMutation.mutateAsync({ lessonId: draggedItem.id, folderId });
+    } catch (error) {
+      console.error('Failed to move item:', error);
+      alert(`Failed to move item: ${error.message}`);
+    } finally {
+      setDraggedItem(null);
+      setDragOverFolder(null);
+    }
+  };
 
   // Folder handlers
   const handleCreateFolder = async (e) => {
@@ -67,9 +114,14 @@ export default function Library({ user }) {
 
   const handleDeleteFolder = async (e, folderId) => {
     e.stopPropagation();
+    e.preventDefault();
+    console.log('Delete folder clicked, folderId:', folderId);
+    
     if (window.confirm('Are you sure you want to delete this folder? Items inside will be moved out.')) {
       try {
+        console.log('Calling deleteFolderMutation...');
         await deleteFolderMutation.mutateAsync(folderId);
+        console.log('Folder deleted successfully');
         if (selectedFolderId === folderId) {
           setSelectedFolderId(null);
         }
@@ -345,6 +397,26 @@ export default function Library({ user }) {
           </div>
         </div>
 
+        {/* Drag hint */}
+        <AnimatePresence>
+          {draggedItem && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2 text-sm text-purple-700"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              >
+                📁
+              </motion.div>
+              <span>Drop on a folder to move "{draggedItem.title}"</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Folders Section - Only show when not inside a folder */}
         {!selectedFolderId && folders.length > 0 && (
           <motion.div 
@@ -361,13 +433,25 @@ export default function Library({ user }) {
                     <motion.div
                       layout
                       onClick={() => setSelectedFolderId(folder.id)}
-                      className="group bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-200 transition-all duration-200 cursor-pointer relative"
+                      onDragOver={handleDragOver}
+                      onDragEnter={() => handleDragEnterFolder(folder.id)}
+                      onDragLeave={handleDragLeaveFolder}
+                      onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                      className={`group bg-white p-4 rounded-xl shadow-sm border transition-all duration-200 cursor-pointer relative ${
+                        dragOverFolder === folder.id 
+                          ? 'border-purple-500 bg-purple-50 scale-105 shadow-lg' 
+                          : 'border-gray-200 hover:shadow-md hover:border-purple-200'
+                      }`}
                       whileHover={{ y: -4 }}
                       whileTap={{ scale: 0.98 }}
                     >
                   <div className="flex justify-between items-start mb-3">
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                      <Folder className="w-6 h-6 text-blue-600" />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                      dragOverFolder === folder.id ? 'bg-purple-100' : 'bg-blue-50'
+                    }`}>
+                      <Folder className={`w-6 h-6 transition-colors ${
+                        dragOverFolder === folder.id ? 'text-purple-600' : 'text-blue-600'
+                      }`} />
                     </div>
                     <div className="relative">
                       <button 
@@ -396,6 +480,17 @@ export default function Library({ user }) {
                   <p className="text-xs text-gray-500 mt-1">
                     {results.filter(r => r.folder_id === folder.id).length} items
                   </p>
+                  
+                  {/* Drop indicator */}
+                  {dragOverFolder === folder.id && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-purple-500/10 rounded-xl border-2 border-dashed border-purple-500 flex items-center justify-center pointer-events-none"
+                    >
+                      <span className="text-xs font-medium text-purple-700">Drop here</span>
+                    </motion.div>
+                  )}
                 </motion.div>
                   </StaggerItem>
                 ))}
@@ -444,7 +539,12 @@ export default function Library({ user }) {
                   <StaggerItem key={result.id}>
                     <motion.div
                       layout
-                      className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
+                      draggable={!selectedFolderId}
+                      onDragStart={(e) => handleDragStart(e, result)}
+                      onDragEnd={handleDragEnd}
+                      className={`group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer ${
+                        draggedItem?.id === result.id ? 'opacity-50' : ''
+                      }`}
                       onClick={() => handleViewResult(result)}
                       whileHover={{ y: -4 }}
                       whileTap={{ scale: 0.98 }}
@@ -545,12 +645,17 @@ export default function Library({ user }) {
                     {filteredResults.map((result, index) => (
                       <motion.tr
                         key={result.id}
+                        draggable={!selectedFolderId}
+                        onDragStart={(e) => handleDragStart(e, result)}
+                        onDragEnd={handleDragEnd}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2, delay: index * 0.05 }}
                         onClick={() => handleViewResult(result)}
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                          draggedItem?.id === result.id ? 'opacity-50' : ''
+                        }`}
                       >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">

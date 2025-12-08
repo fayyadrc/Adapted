@@ -52,14 +52,21 @@ def get_folders():
 @folders_bp.route('/folders/<folder_id>', methods=['DELETE'])
 def delete_folder(folder_id):
     try:
-        # Check if folder has items? Or rely on cascade/set null?
-        # For now, just delete
-        response = supabase.table("folders").delete().eq("id", folder_id).execute()
+        print(f"Attempting to delete folder: {folder_id}")
         
-        if not response.data:
-             return jsonify({"error": "Folder not found or could not be deleted"}), 404
-
-        return jsonify({"message": "Folder deleted successfully"}), 200
+        # First, move any documents in this folder to no folder (set folder_id to null)
+        try:
+            supabase.table("results").update({"folder_id": None}).eq("folder_id", folder_id).execute()
+            print(f"Moved documents out of folder {folder_id}")
+        except Exception as move_error:
+            print(f"Warning: Could not move documents: {move_error}")
+        
+        # Now delete the folder
+        response = supabase.table("folders").delete().eq("id", folder_id).execute()
+        print(f"Delete response: {response}")
+        
+        # Supabase returns empty data on successful delete sometimes
+        return jsonify({"message": "Folder deleted successfully", "id": folder_id}), 200
 
     except Exception as e:
         print(f"Error deleting folder: {e}")
