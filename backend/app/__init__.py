@@ -47,6 +47,9 @@ def create_app():
 
     from .api.folders import folders_bp
     app.register_blueprint(folders_bp, url_prefix='/api')
+
+    from .api.canva_auth import canva_auth_bp
+    app.register_blueprint(canva_auth_bp, url_prefix='/api/canva')
     
     @app.route('/health')
     def health_check():

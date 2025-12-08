@@ -10,6 +10,7 @@ import re
 import matplotlib.pyplot as plt
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_infographic_data_from_text
+from ..services.canva_service import create_design_autofill_job, poll_design_autofill_job
 matplotlib.use('Agg')
 infographic_bp = Blueprint('infographic', __name__)
 
@@ -732,16 +733,107 @@ def generate_infographic():
         return jsonify({"error": str(e)}), 500
 
 
-@infographic_bp.route('/themes', methods=['GET'])
-def list_themes():
-    """Return list of available themes for the frontend to display."""
-    themes = []
-    for key, theme in THEME_PRESETS.items():
-        themes.append({
-            "id": key,
-            "name": theme['name'],
-            "accent": theme['accent'],
-            "bg": theme['bg'],
-            "header_bg": theme['header_bg']
-        })
     return jsonify({"themes": themes})
+
+@infographic_bp.route('/generate-canva', methods=['POST'])
+def generate_canva_infographic():
+    """
+    Generates an infographic using the Canva Connect API.
+    """
+    try:
+        # 1. Get Access Token (from header or session)
+        # For this MVP, we expect it in the Authorization header or form data
+        auth_header = request.headers.get('Authorization')
+        access_token = None
+        if auth_header and auth_header.startswith("Bearer "):
+             access_token = auth_header.split(" ")[1]
+        
+        if not access_token:
+            access_token = request.form.get('canva_token')
+            
+        if not access_token:
+            return jsonify({"error": "Missing Canva Access Token"}), 401
+            
+        # 2. Extract Text (Same logic as existing)
+        text_content = ""
+        if 'file' in request.files:
+            file = request.files['file']
+            filename = file.filename.lower()
+            if filename.endswith('.pdf'):
+                text_content = extract_text_from_pdf(file.stream.read())
+            elif filename.endswith('.docx'):
+                text_content = extract_text_from_docx(file)
+            else:
+                return jsonify({"error": "Unsupported file type"}), 400
+        elif 'text' in request.form:
+            text_content = request.form['text']
+        else:
+             # Just for testing/demo
+            text_content = "Placeholder text content about biology."
+
+        # 3. Generate Data using AI Service
+        infographic_data = generate_infographic_data_from_text(text_content)
+        
+        # 4. Map to Canva Data Structure
+        # We need to flatten the structure or match the template fields.
+        # Let's assume a generic template with these fields:
+        # title, subtitle, stat_1_val, stat_1_label, point_1_title, point_1_desc...
+        
+        canva_data = {
+            "title": infographic_data.get('title', 'Infographic'),
+            "subtitle": infographic_data.get('subtitle', ''),
+            "conclusion": infographic_data.get('conclusion', '')
+        }
+        
+        # Stats
+        stats = infographic_data.get('stats', [])
+        for i, stat in enumerate(stats[:3]):
+            canva_data[f"stat_{i+1}_value"] = stat.get('value', '')
+            canva_data[f"stat_{i+1}_label"] = stat.get('label', '')
+            
+        # Key Points
+        points = infographic_data.get('key_points', [])
+        for i, point in enumerate(points[:3]):
+            canva_data[f"point_{i+1}_title"] = point.get('title', '')
+            canva_data[f"point_{i+1}_desc"] = point.get('description', '')
+
+        # 5. Create Autofill Job
+        # Ideally, passed from frontend, but we can have a default
+        template_id = request.form.get('template_id', 'DAF12345678') 
+        
+        job_response = create_design_autofill_job(
+            {"data": canva_data, "title": canva_data['title']}, 
+            template_id, 
+            access_token
+        )
+        
+        job_id = job_response.get('job', {}).get('id')
+        
+        if not job_id:
+             return jsonify({"error": "Failed to create Canva job"}), 500
+             
+        # 6. Poll for completion (Short wait, else return job_id)
+        # We'll wait up to 10 seconds.
+        try:
+            result = poll_design_autofill_job(job_id, access_token, max_attempts=5, delay=2)
+            design_url = result.get('job', {}).get('result', {}).get('design', {}).get('url')
+            edit_url = result.get('job', {}).get('result', {}).get('design', {}).get('edit_url')
+            
+            return jsonify({
+                "message": "Success",
+                "canva_url": design_url,
+                "edit_url": edit_url, # Useful for 'Edit in Canva' button
+                "job_id": job_id
+            })
+            
+        except Exception as e:
+            # If timeout, return job_id so frontend can keep polling
+            return jsonify({
+                "message": "Processing",
+                "job_id": job_id,
+                "status": "pending"
+            }), 202
+            
+    except Exception as e:
+        print(f"Canva Gen Error: {e}")
+        return jsonify({"error": str(e)}), 500

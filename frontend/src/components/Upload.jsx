@@ -24,6 +24,7 @@ import {
 import MindMapViewer from './MindMapViewer';
 import SummaryViewer from './SummaryViewer';
 import QuizViewer from './QuizViewer';
+import CanvaConnect from './CanvaConnect';
 
 import api from '../services/apiService';
 
@@ -62,6 +63,10 @@ export default function Upload({ user }) {
   });
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
   const [showQuizOptions, setShowQuizOptions] = useState(false);
+
+  // Canva State
+  const [isCanvaEnabled, setIsCanvaEnabled] = useState(false);
+  const [canvaToken, setCanvaToken] = useState(localStorage.getItem('canva_access_token'));
 
   // Mock user assessment data
   const userAssessment = { recommended: ['visual'] };
@@ -187,28 +192,64 @@ export default function Upload({ user }) {
       if (selectedFormats.visual.infographic) {
         try {
           console.log('Generating Infographic...');
-          const formData = new FormData();
-          formData.append('file', file);
 
-          const infographicResponse = await fetch("http://localhost:5000/api/infographic/generate", {
-            method: "POST",
-            body: formData,
-          });
+          if (isCanvaEnabled) {
+            console.log('Using Canva API Generation');
+            if (!canvaToken) throw new Error("Please connect to Canva first");
 
-          if (infographicResponse.ok) {
-            const infographicData = await infographicResponse.json();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('canva_token', canvaToken);
+
+            const endpoint = "http://localhost:5000/api/infographic/generate-canva";
+            const canvaResp = await fetch(endpoint, {
+              method: "POST",
+              body: formData
+            });
+
+            const canvaData = await canvaResp.json();
+            if (!canvaResp.ok) throw new Error(canvaData.error || "Canva error");
+
             enrichedResult.formats.infographic = {
-              type: 'Infographic',
-              description: 'AI-generated visual summary',
-              data: infographicData, // Contains url and image_data
-              icon: '✨'
+              type: 'Canva Infographic',
+              description: 'Professional visual design from Canva',
+              data: {
+                url: canvaData.canva_url,
+                edit_url: canvaData.edit_url,
+                image_data: null // We might not get an image back immediately in async flow without preview
+              },
+              isCanva: true,
+              icon: '🎨'
             };
-            console.log('Infographic generated successfully');
+
           } else {
-            console.error('Failed to generate infographic');
+            // Use Legacy Logic (Pillow)
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const infographicResponse = await fetch("http://localhost:5000/api/infographic/generate", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (infographicResponse.ok) {
+              const infographicData = await infographicResponse.json();
+              enrichedResult.formats.infographic = {
+                type: 'Infographic',
+                description: 'AI-generated visual summary',
+                data: infographicData, // Contains url and image_data
+                icon: '✨'
+              };
+              console.log('Infographic generated successfully');
+            } else {
+              console.error('Failed to generate infographic');
+            }
           }
+
         } catch (infographicErr) {
           console.error('Error generating infographic:', infographicErr);
+          // Don't block other formats
+          setError(`Infographic warning: ${infographicErr.message}`);
         }
       }
       console.log('Enriched result structure:', enrichedResult);
@@ -454,7 +495,9 @@ export default function Upload({ user }) {
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">Infographic: {title}</h2>
-                  <p className="text-sm text-gray-500">AI-generated visual summary</p>
+                  <p className="text-sm text-gray-500">
+                    {generatedResult.formats.infographic.isCanva ? "Canva Design" : "AI-generated visual summary"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -466,37 +509,58 @@ export default function Upload({ user }) {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-gray-50">
-                <img
-                  src={generatedResult.formats.infographic.data.image_data}
-                  alt="Infographic"
-                  className="max-w-full h-auto shadow-lg rounded-lg"
-                />
+
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center bg-gray-50">
+                {generatedResult.formats.infographic.isCanva ? (
+                  <div className="text-center p-8">
+                    <div className="mb-6">
+                      <h3 className="text-lg font-bold text-gray-800 mb-2">Design Created in Canva!</h3>
+                      <p className="text-gray-600 mb-6">Your infographic has been drafted using your content.</p>
+                    </div>
+                    <div className="flex gap-4 justify-center">
+                      {generatedResult.formats.infographic.data.url && (
+                        <a
+                          href={generatedResult.formats.infographic.data.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-6 py-3 bg-[#00C4CC] text-white font-bold rounded-lg hover:shadow-lg transition-all"
+                        >
+                          View in Canva
+                        </a>
+                      )}
+                      {generatedResult.formats.infographic.data.edit_url && (
+                        <a
+                          href={generatedResult.formats.infographic.data.edit_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-6 py-3 bg-white text-[#00C4CC] border-2 border-[#00C4CC] font-bold rounded-lg hover:bg-gray-50 transition-all"
+                        >
+                          Edit Design
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={generatedResult.formats.infographic.data.image_data}
+                    alt="Infographic"
+                    className="max-w-full h-auto shadow-lg rounded-lg"
+                  />
+                )}
               </div>
-              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-                <a
-                  href={generatedResult.formats.infographic.data.image_data}
-                  download="infographic.jpg"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </a>
-                <button
-                  onClick={() => {
-                    const data = generatedResult.formats.infographic.data;
-                    if (data.url && !data.url.startsWith('data:')) {
-                      window.open(data.url, '_blank');
-                    } else {
-                      alert('Image saved locally. Use Download to save.');
-                    }
-                  }}
-                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Open in New Tab
-                </button>
-              </div>
+
+              {!generatedResult.formats.infographic.isCanva && (
+                <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                  <a
+                    href={generatedResult.formats.infographic.data.image_data}
+                    download="infographic.jpg"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -636,6 +700,35 @@ export default function Upload({ user }) {
                             onClick={() => handleSubOptionClick('infographic')}
                             isSelected={selectedFormats.visual.infographic}
                           />
+
+                          {selectedFormats.visual.infographic && (
+                            <div className="pl-8 mt-2 space-y-2">
+                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  checked={!isCanvaEnabled}
+                                  onChange={() => setIsCanvaEnabled(false)}
+                                  className="text-purple-600 focus:ring-purple-500"
+                                />
+                                <span>Standard (Instant)</span>
+                              </label>
+                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  checked={isCanvaEnabled}
+                                  onChange={() => setIsCanvaEnabled(true)}
+                                  className="text-[#00C4CC] focus:ring-[#00C4CC]"
+                                />
+                                <span>Canva Design</span>
+                              </label>
+
+                              {isCanvaEnabled && (
+                                <div className="mt-2">
+                                  <CanvaConnect onConnected={(token) => setCanvaToken(token)} />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

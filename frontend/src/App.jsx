@@ -8,7 +8,9 @@ import Library from './components/Library';
 import ResultDetail from './components/ResultDetail';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
+
 import HomePage from './components/HomePage';
+import CanvaCallback from './components/CanvaCallback';
 import './App.css';
 
 import { supabase } from './supabaseConfig';
@@ -63,6 +65,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
+          <Route path="/canva/callback" element={<CanvaCallback />} />
 
           {/* Protected Routes */}
           <Route
