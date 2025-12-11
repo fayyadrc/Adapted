@@ -169,7 +169,6 @@ export default function ResultDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* Mind Map Modal */}
       {showMindMapModal && result?.formats?.visual?.data && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
