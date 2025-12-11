@@ -129,9 +129,11 @@ export default function Upload({ user }) {
     if (selectedFormats.flashcards) formatsToGenerate.push('flashcards');
     if (selectedFormats.reports) formatsToGenerate.push('reports');
 
-    if (Object.values(selectedFormats.visual).some(Boolean)) {
-      formatsToGenerate.push('visual');
-    }
+    // Send specific visual types instead of generic 'visual'
+    if (selectedFormats.visual.mindmap) formatsToGenerate.push('mindmap');
+    if (selectedFormats.visual.infographic) formatsToGenerate.push('infographic');
+    if (selectedFormats.visual.chart) formatsToGenerate.push('chart');
+    if (selectedFormats.visual.diagram) formatsToGenerate.push('diagram');
 
     try {
       console.log('=== UPLOAD DEBUG ===');

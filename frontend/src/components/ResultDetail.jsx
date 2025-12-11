@@ -53,8 +53,6 @@ const formatAbsoluteDate = (iso) => {
 };
 
 
-
-
 export default function ResultDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -68,7 +66,7 @@ export default function ResultDetail() {
   const [bookmarked, setBookmarked] = useState(false);
   const [shareStatus, setShareStatus] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   // Modal states - must be declared at top level, before any conditional returns
   const [showMindMapModal, setShowMindMapModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -171,6 +169,7 @@ export default function ResultDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {/* Mind Map Modal */}
       {showMindMapModal && result?.formats?.visual?.data && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -302,6 +301,25 @@ export default function ResultDetail() {
           </div>
         ) : (
           <>
+            {/* Details Section */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Result ID</span>
+                  <span className="font-medium text-gray-900 truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Uploaded</span>
+                  <span className="font-medium text-gray-900">{absoluteUploadTime}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Document</span>
+                  <span className="font-medium text-gray-900 truncate" title={resultTitle}>{resultTitle}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Format Cards Grid - Similar to Upload.jsx */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
               <div className="flex items-center justify-between mb-4">
@@ -314,7 +332,7 @@ export default function ResultDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Mind Map Card */}
                 {result?.formats?.visual?.data && (
-                  <div 
+                  <div
                     onClick={() => setShowMindMapModal(true)}
                     className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
                   >
@@ -335,7 +353,7 @@ export default function ResultDetail() {
 
                 {/* Quiz Card */}
                 {result?.formats?.quiz?.data && (
-                  <div 
+                  <div
                     onClick={() => setShowQuizModal(true)}
                     className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
                   >
@@ -358,7 +376,7 @@ export default function ResultDetail() {
 
                 {/* Summary Card */}
                 {result?.formats?.reports?.data && (
-                  <div 
+                  <div
                     onClick={() => setShowSummaryModal(true)}
                     className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
                   >
@@ -381,7 +399,7 @@ export default function ResultDetail() {
 
                 {/* Infographic Card */}
                 {result?.formats?.infographic?.data && (
-                  <div 
+                  <div
                     onClick={() => setShowInfographicModal(true)}
                     className="bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
                   >
@@ -412,24 +430,7 @@ export default function ResultDetail() {
               </div>
             </div>
 
-            {/* Details Section */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Details</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-1">Result ID</span>
-                  <span className="font-medium text-gray-900 truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-1">Uploaded</span>
-                  <span className="font-medium text-gray-900">{absoluteUploadTime}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-1">Document</span>
-                  <span className="font-medium text-gray-900 truncate" title={resultTitle}>{resultTitle}</span>
-                </div>
-              </div>
-            </div>
+
           </>
         )}
       </div>

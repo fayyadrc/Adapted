@@ -56,9 +56,9 @@ def upload_and_process():
         "formats": {}
     }
 
-    # Generate visual format (mind map)
-    if "visual" in requested_formats:
-        print("=== Generating VISUAL format ===")
+    # Generate visual format (mind map) - only when 'mindmap' is explicitly requested
+    if "mindmap" in requested_formats:
+        print("=== Generating MINDMAP format ===")
         try:
             mindmap_json_string = generate_mindmap_from_text(text_content)
             print(f"Mind map JSON string: {mindmap_json_string[:200]}...")
@@ -81,7 +81,7 @@ def upload_and_process():
                 "icon": "🗺️"
             }
     else:
-        print(f"Visual NOT in requested formats: {requested_formats}")
+        print(f"Mindmap NOT in requested formats: {requested_formats}")
 
     # Generate audio format (summary for TTS)
     if "audio" in requested_formats:
