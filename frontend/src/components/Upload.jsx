@@ -136,18 +136,10 @@ export default function Upload({ user }) {
     if (selectedFormats.visual.diagram) formatsToGenerate.push('diagram');
 
     try {
-      console.log('=== UPLOAD DEBUG ===');
-      console.log('Selected formats:', selectedFormats);
-      console.log('Formats to generate:', formatsToGenerate);
-      console.log('Number of questions:', numQuestions);
-      console.log('User ID:', user?.id);
-      console.log('Folder ID:', folderId);
+
 
       const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions, user?.id, folderId);
-      console.log('Raw backend response:', data);
-      console.log('Response keys:', Object.keys(data));
-      console.log('Has formats key?', 'formats' in data);
-      console.log('Full response:', JSON.stringify(data, null, 2));
+
 
       // FIXED: Properly structure the result based on backend response
       const enrichedResult = {
@@ -159,10 +151,10 @@ export default function Upload({ user }) {
 
       // Check if backend returned proper format structure
       if (data?.formats) {
-        console.log('Backend returned proper format structure');
+
         enrichedResult.formats = data.formats;
       } else {
-        console.log('Backend returned raw data, need to wrap it');
+
 
         // Handle visual/mindmap format
         if (selectedFormats.visual.mindmap && data.root) {
@@ -188,7 +180,7 @@ export default function Upload({ user }) {
       // Handle Infographic Generation
       if (selectedFormats.visual.infographic) {
         try {
-          console.log('Generating Infographic...');
+
           const formData = new FormData();
           formData.append('file', file);
 
@@ -205,7 +197,7 @@ export default function Upload({ user }) {
               data: infographicData, // Contains url and image_data
               icon: '✨'
             };
-            console.log('Infographic generated successfully');
+
           } else {
             console.error('Failed to generate infographic');
           }
@@ -213,14 +205,11 @@ export default function Upload({ user }) {
           console.error('Error generating infographic:', infographicErr);
         }
       }
-      console.log('Enriched result structure:', enrichedResult);
-      console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
-      console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
-      console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
+
 
       let finalResult;
       if (generatedResult && generatedResult.title === title) {
-        console.log('✅ Merging with existing formats for the same file');
+
         finalResult = {
           ...generatedResult,
           formats: {
@@ -230,12 +219,12 @@ export default function Upload({ user }) {
         };
         setGeneratedResult(finalResult);
       } else {
-        console.log('✅ Setting new result');
+
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
 
-      console.log('✅ Content generated successfully. All formats available in Generated Content section.');
+
 
     } catch (err) {
       console.error('❌ Generation error:', err);
@@ -251,14 +240,14 @@ export default function Upload({ user }) {
       setShowVisualSubOptions(!showVisualSubOptions);
     } else if (formatKey === 'quiz') {
       const newQuizState = !selectedFormats.quiz;
-      console.log('Quiz clicked. New state:', newQuizState);
+
       setSelectedFormats(prev => ({
         ...prev,
         quiz: newQuizState
       }));
       // Show options when selecting, hide when deselecting
       setShowQuizOptions(newQuizState);
-      console.log('Show quiz options:', newQuizState);
+
     } else if (formatKey === 'audio' || formatKey === 'video' || formatKey === 'flashcards') {
       alert('Coming Soon');
     } else if (formatKey === 'reports') {

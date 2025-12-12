@@ -1,8 +1,9 @@
 // API service for backend communication
 
 // Central backend base URL
-// Keep this as the single source of truth for frontend -> backend calls
-const API_BASE_URL = 'http://localhost:5000/api';
+// In production, use relative path '/api' which nginx proxies to backend
+// In development, use VITE_API_URL or default to localhost:5000
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiService {
   async uploadFile(file, title, formats, numQuestions = 5, userId = null, folderId = null) {
@@ -18,15 +19,7 @@ class ApiService {
       formData.append('folder_id', folderId);
     }
 
-    console.log('=== API SERVICE DEBUG ===');
-    console.log('Sending to /api/upload:');
-    console.log('  file:', file?.name);
-    console.log('  title:', title);
-    console.log('  formats:', formats);
-    console.log('  formats JSON:', JSON.stringify(formats));
-    console.log('  num_questions:', numQuestions);
-    console.log('  user_id:', userId);
-    console.log('  folder_id:', folderId);
+
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
@@ -39,8 +32,7 @@ class ApiService {
     }
 
     const responseData = await response.json();
-    console.log('=== API RESPONSE ===');
-    console.log('Response:', responseData);
+
     return responseData;
   }
 
@@ -55,7 +47,7 @@ class ApiService {
   }
 
   async getResults(userId = null) {
-    const url = userId 
+    const url = userId
       ? `${API_BASE_URL}/results?user_id=${userId}`
       : `${API_BASE_URL}/results`;
     const response = await fetch(url);
@@ -106,7 +98,7 @@ class ApiService {
   }
 
   async deleteFolder(id) {
-    console.log('Deleting folder:', id);
+
     const response = await fetch(`${API_BASE_URL}/folders/${id}`, {
       method: 'DELETE',
     });
@@ -118,7 +110,7 @@ class ApiService {
     }
 
     const data = await response.json();
-    console.log('Folder deleted successfully:', data);
+
     return data;
   }
 

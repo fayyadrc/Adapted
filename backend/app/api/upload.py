@@ -13,7 +13,7 @@ def upload_and_process():
     """
     Unified upload endpoint that processes files and generates requested formats
     """
-    print("=== UPLOAD ENDPOINT CALLED ===")
+
     
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -27,15 +27,14 @@ def upload_and_process():
     title = request.form.get('title', file.filename)
     formats = request.form.get('formats', '["visual", "audio", "quiz"]')
     
-    print(f"Title: {title}")
-    print(f"Formats string: {formats}")
+
     
     try:
         requested_formats = json.loads(formats)
-        print(f"Requested formats parsed: {requested_formats}")
+
     except json.JSONDecodeError:
         requested_formats = ["visual", "audio", "quiz"]
-        print(f"JSON decode error, using defaults: {requested_formats}")
+
 
     # Extract text from the uploaded file
     text_content = ""
@@ -58,19 +57,19 @@ def upload_and_process():
 
     # Generate visual format (mind map) - only when 'mindmap' is explicitly requested
     if "mindmap" in requested_formats:
-        print("=== Generating MINDMAP format ===")
+
         try:
             mindmap_json_string = generate_mindmap_from_text(text_content)
-            print(f"Mind map JSON string: {mindmap_json_string[:200]}...")
+
             mindmap_data = json.loads(mindmap_json_string)
-            print(f"Mind map data parsed successfully")
+
             results_content["formats"]["visual"] = {
                 "type": "Mind Map",
                 "description": "Interactive mind map showing key concepts and relationships",
                 "data": mindmap_data,
                 "icon": "🗺️"
             }
-            print(f"Visual format added to results")
+
         except Exception as e:
             print(f"Error generating mind map: {e}")
             traceback.print_exc()
@@ -80,8 +79,6 @@ def upload_and_process():
                 "error": str(e),
                 "icon": "🗺️"
             }
-    else:
-        print(f"Mindmap NOT in requested formats: {requested_formats}")
 
     # Generate audio format (summary for TTS)
     if "audio" in requested_formats:
@@ -112,7 +109,7 @@ def upload_and_process():
 
     # Generate quiz format
     if "quiz" in requested_formats:
-        print("=== Generating QUIZ format ===")
+
         try:
             # Get number of questions from request, default to 5
             num_questions = request.form.get('num_questions', 5)
@@ -122,7 +119,7 @@ def upload_and_process():
                 num_questions = 5
             
             quiz_data = generate_quiz_from_text(text_content, num_questions)
-            print(f"Quiz data generated: {json.dumps(quiz_data, indent=2)[:200]}...")
+
             results_content["formats"]["quiz"] = {
                 "type": "Interactive Quiz",
                 "description": "Test your understanding with AI-generated questions",
@@ -130,7 +127,7 @@ def upload_and_process():
                 "questionCount": len(quiz_data.get('questions', [])),
                 "icon": "❓"
             }
-            print(f"Quiz format added to results")
+
         except Exception as e:
             print(f"Error generating quiz: {e}")
             traceback.print_exc()
@@ -143,17 +140,17 @@ def upload_and_process():
 
     # Generate reports/summary format
     if "reports" in requested_formats:
-        print("=== Generating REPORTS/SUMMARY format ===")
+
         try:
             summary_data = generate_summary_from_text(text_content)
-            print(f"Summary data generated successfully")
+
             results_content["formats"]["reports"] = {
                 "type": "Summary Report",
                 "description": "Comprehensive summary with key points and examples",
                 "data": summary_data,
                 "icon": "📄"
             }
-            print(f"Reports format added to results")
+
         except Exception as e:
             print(f"Error generating summary: {e}")
             traceback.print_exc()
@@ -183,7 +180,7 @@ def upload_and_process():
             "user_id": user_id
         }
         
-        print(f"Inserting into Supabase with folder_id: {folder_id}...")
+
         response = supabase.table("results").insert(data_to_insert).execute()
     
         if not response.data:
@@ -206,8 +203,7 @@ def upload_and_process():
             "created_at": inserted_record['created_at']
         }
 
-        print(f"=== FINAL RESULTS ===")
-        print(f"Results ID: {final_result['id']}")
+
         
         return jsonify(final_result), 200
 

@@ -266,7 +266,7 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
 
       const uploadData = await uploadRes.json();
       const publicUrl = uploadData.url;
-      console.log("Mind map image uploaded to:", publicUrl);
+
 
       alert("Mind Map image saved successfully!");
 
