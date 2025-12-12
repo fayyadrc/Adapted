@@ -118,11 +118,25 @@ def upload_and_process():
             public_url = supabase.storage.from_(bucket_name).get_public_url(filename)
             print(f"Audio uploaded successfully: {public_url}")
             
-            # Estimate duration (rough: ~150 words per minute, ~0.5s per word)
-            estimated_duration = len(text_content.split()) * 0.5
-            minutes = int(estimated_duration // 60)
-            seconds = int(estimated_duration % 60)
-            duration_str = f"{minutes}:{seconds:02d}" if minutes > 0 else f"0:{seconds:02d}"
+            # Calculate actual duration from audio bytes using mutagen
+            duration_str = "Unknown"
+            try:
+                from mutagen.mp3 import MP3
+                from io import BytesIO
+                audio_file = BytesIO(audio_bytes)
+                audio_info = MP3(audio_file)
+                actual_duration = audio_info.info.length  # Duration in seconds
+                minutes = int(actual_duration // 60)
+                seconds = int(actual_duration % 60)
+                duration_str = f"{minutes}:{seconds:02d}"
+                print(f"Actual audio duration: {duration_str}")
+            except Exception as duration_error:
+                print(f"Could not determine audio duration: {duration_error}")
+                # Fallback to rough estimate
+                estimated_duration = len(text_content.split()) * 0.5
+                minutes = int(estimated_duration // 60)
+                seconds = int(estimated_duration % 60)
+                duration_str = f"{minutes}:{seconds:02d}" if minutes > 0 else f"0:{seconds:02d}"
             
             results_content["formats"]["audio"] = {
                 "type": "Podcast Audio",

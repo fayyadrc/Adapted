@@ -324,3 +324,73 @@ def generate_infographic_data_from_text(text_content):
             "key_points": [],
             "conclusion": str(e)
         }
+
+
+def generate_flashcards_from_text(text_content):
+    """Generate structured flashcard data from text content"""
+    model = genai.GenerativeModel('gemini-2.5-flash')
+
+    prompt = f"""
+    You are an educational assistant creating flashcards for students.
+    Analyze the following text and generate flashcards in a clean JSON format.
+
+    Structure the JSON EXACTLY like this:
+    {{
+        "flashcards": [
+            {{
+                "term": "Important concept",
+                "definition": "Short, simple explanation in 1–2 sentences."
+            }},
+            {{
+                "term": "Another key idea",
+                "definition": "Clear and concise explanation."
+            }}
+        ]
+    }}
+
+    Requirements:
+    - Generate 5–10 flashcards depending on the density of the input text.
+    - ONLY use information present in the provided text.
+    - Definitions must be short, simple, and student-friendly.
+    - Return ONLY the JSON. No markdown, no extra text.
+
+    Text to analyze:
+    ---
+    {text_content}
+    ---
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        raw_response = response.text or ""
+        cleaned_response = clean_json_response(raw_response)
+
+        try:
+            parsed_data = json.loads(cleaned_response)
+
+            # Ensure format
+            if "flashcards" not in parsed_data:
+                parsed_data = {"flashcards": []}
+
+            return parsed_data
+
+        except json.JSONDecodeError:
+            return {
+                "flashcards": [
+                    {
+                        "term": "Flashcard generation error",
+                        "definition": "The system could not parse the flashcard data. Please try again."
+                    }
+                ]
+            }
+
+    except Exception as e:
+        print(f"Error generating flashcards: {e}")
+        return {
+            "flashcards": [
+                {
+                    "term": "System Error",
+                    "definition": "An unexpected error occurred. Try again later."
+                }
+            ]
+        }

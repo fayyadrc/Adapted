@@ -2,6 +2,7 @@ import json
 import time
 import io
 import os
+import re
 from datetime import datetime
 from google import genai
 from elevenlabs import ElevenLabs
@@ -39,66 +40,59 @@ def log(msg):
 
 
 def clean_json(raw_text: str) -> str:
-    """Extract JSON array from response, handling extra text and markdown."""
+    """
+    Robustly extract and clean JSON from response.
+    Handles markdown, trailing commas, and basic syntax errors.
+    """
     if not raw_text:
         return ''
     
     cleaned = raw_text.strip()
     
-    # Remove markdown code fences
-    if cleaned.startswith("```"):
-        # Remove opening ```json or ```
-        lines = cleaned.split('\n')
-        if lines[0].strip().startswith('```'):
-            cleaned = '\n'.join(lines[1:])
-        cleaned = cleaned.rstrip('`').strip()
+    # 1. Remove Markdown Code Blocks (```json ... ```)
+    # Using regex to capture content inside code fences
+    md_pattern = r'```(?:json)?\s*(.*?)```'
+    match = re.search(md_pattern, cleaned, re.DOTALL | re.IGNORECASE)
+    if match:
+        cleaned = match.group(1).strip()
+    else:
+        # Fallback: simple strip if no regex match but stars with ```
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r'^```(?:json)?', '', cleaned, flags=re.MULTILINE | re.IGNORECASE)
+            cleaned = cleaned.rstrip('`').strip()
+
+    # 2. Extract strictly from first [ or { to last ] or }
+    # Find start
+    start_bracket = cleaned.find('[')
+    start_brace = cleaned.find('{')
     
-    # Find the first '[' (JSON array start)
-    start = cleaned.find('[')
-    if start == -1:
-        # Try to find '{' as fallback for objects
-        start = cleaned.find('{')
-        if start == -1:
-            return cleaned.strip()
+    start_index = -1
+    end_char = ''
+    
+    if start_bracket != -1 and (start_brace == -1 or start_bracket < start_brace):
+        start_index = start_bracket
+        end_char = ']'
+    elif start_brace != -1:
+        start_index = start_brace
+        end_char = '}'
         
-        # For objects, match braces to find the closing '}'
-        depth = 0
-        end = None
-        for i in range(start, len(cleaned)):
-            ch = cleaned[i]
-            if ch == '{':
-                depth += 1
-            elif ch == '}':
-                depth -= 1
-                if depth == 0:
-                    end = i
-                    break
-        if end is not None:
-            return cleaned[start:end + 1].strip()
-        return cleaned[start:].strip()
-    
-    # For arrays, match brackets to find the closing ']'
-    depth = 0
-    end = None
-    for i in range(start, len(cleaned)):
-        ch = cleaned[i]
-        if ch == '[':
-            depth += 1
-        elif ch == ']':
-            depth -= 1
-            if depth == 0:
-                end = i
-                break
-    
-    if end is not None:
-        # Extract only the JSON array portion
-        extracted = cleaned[start:end + 1].strip()
-        # Clean up trailing commas before closing bracket
-        extracted = extracted.replace(",]", "]").replace(",}", "}")
-        return extracted
-    
-    # If no closing bracket found, return from start to end (fallback)
-    return cleaned[start:].strip().replace(",]", "]").replace(",}", "}")
+    if start_index != -1:
+        # Find the LAST occurrence of the matching end char
+        end_index = cleaned.rfind(end_char)
+        if end_index != -1 and end_index > start_index:
+            cleaned = cleaned[start_index:end_index+1]
+        else:
+            # Fallback if no closing char found, take everything from start
+            cleaned = cleaned[start_index:]
+            
+    # 3. Remove trailing commas using Regex
+    # Matches a comma followed by whitespace and a closing bracket/brace
+    # re.X allows for verbose regex (comments), but we'll stick to simple inline
+    # Pattern: , followed by optional whitespace, followed by ] or }
+    # Repace with just the bracket/brace
+    cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
+
+    return cleaned
 
 
 def text_to_podcast_json(text: str, host_voice_id: str, guest_voice_id: str) -> list:
@@ -109,6 +103,7 @@ def text_to_podcast_json(text: str, host_voice_id: str, guest_voice_id: str) -> 
     start = time.time()
 
     prompt = f"""
+    
 You are an expert podcast scriptwriter.
 
 Convert the document below into a **dynamic, expressive, two-speaker podcast conversation** between:

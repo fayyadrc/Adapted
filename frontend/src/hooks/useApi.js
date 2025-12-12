@@ -31,7 +31,7 @@ export function useResult(id) {
 
 export function useDeleteResult() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id) => apiService.deleteResult(id),
     onSuccess: () => {
@@ -54,7 +54,7 @@ export function useFolders(userId) {
 
 export function useCreateFolder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ name, userId, color }) => apiService.createFolder(name, userId, color),
     onSuccess: () => {
@@ -63,13 +63,15 @@ export function useCreateFolder() {
   });
 }
 
-export function useDeleteFolder() {
+export function useDeleteFolder(userId) {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id) => apiService.deleteFolder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      // Invalidate folder queries for this user to refetch updated list
+      queryClient.invalidateQueries({ queryKey: ['folders', userId] });
+      // Also refresh results as they may reference deleted folder
       queryClient.invalidateQueries({ queryKey: ['results'] });
     },
     onError: (error) => {
@@ -80,7 +82,7 @@ export function useDeleteFolder() {
 
 export function useMoveLessonToFolder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ lessonId, folderId }) => apiService.moveLessonToFolder(lessonId, folderId),
     onSuccess: () => {
@@ -94,9 +96,9 @@ export function useMoveLessonToFolder() {
 
 export function useUploadFile() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ file, title, formats, numQuestions, userId, folderId }) => 
+    mutationFn: ({ file, title, formats, numQuestions, userId, folderId }) =>
       apiService.uploadFile(file, title, formats, numQuestions, userId, folderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['results'] });

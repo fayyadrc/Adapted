@@ -5,7 +5,7 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
-  async uploadFile(file, title, formats, numQuestions = 5, folderId = null, hostVoiceId = null, guestVoiceId = null) {
+  async uploadFile(file, title, formats, numQuestions = 5, folderId = null, hostVoiceId = null, guestVoiceId = null, userId = null) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
@@ -14,6 +14,7 @@ class ApiService {
     if (folderId) formData.append('folder_id', folderId);
     if (hostVoiceId) formData.append('host_voice_id', hostVoiceId);
     if (guestVoiceId) formData.append('guest_voice_id', guestVoiceId);
+    if (userId) formData.append('user_id', userId);
 
     console.log('=== API SERVICE DEBUG ===');
     console.log('Sending to /api/upload:');
@@ -24,6 +25,7 @@ class ApiService {
     console.log('  num_questions:', numQuestions);
     console.log('  host_voice_id:', hostVoiceId);
     console.log('  guest_voice_id:', guestVoiceId);
+    console.log('  user_id:', userId);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
@@ -108,13 +110,17 @@ class ApiService {
       method: 'DELETE',
     });
 
+    console.log('Delete folder response status:', response.status);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('Delete folder error:', errorData);
       throw new Error(errorData.error || 'Failed to delete folder');
     }
 
-    const data = await response.json();
+    // Handle both JSON response and empty response
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : { message: 'Folder deleted' };
     console.log('Folder deleted successfully:', data);
     return data;
   }

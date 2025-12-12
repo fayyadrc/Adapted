@@ -19,7 +19,8 @@ import {
   X,
   Maximize2,
   Minimize2,
-  Download
+  Download,
+  PlusCircle
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import SummaryViewer from './SummaryViewer';
@@ -45,12 +46,12 @@ const saveResultToLocalStorage = (result) => {
     }
 
     localStorage.setItem('adapted:results', JSON.stringify(existingResults));
-    
+
     // Save the last result ID so we can restore it if user navigates away
     if (result.id) {
       localStorage.setItem('adapted:last-result-id', result.id);
     }
-    
+
     console.log('✅ Result saved to localStorage');
   } catch (error) {
     console.error('Failed to save result to localStorage:', error);
@@ -74,7 +75,7 @@ const clearLastResultId = () => {
   }
 };
 
-export default function Upload() {
+export default function Upload({ user }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,38 +97,7 @@ export default function Upload() {
   const folderId = location.state?.folderId;
 
   // Check for pending result on mount (if user navigated away during generation)
-  useEffect(() => {
-    const restorePendingResult = async () => {
-      // Only restore if we don't already have a result and we're not currently loading
-      if (generatedResult || loading) {
-        return;
-      }
 
-      const lastResultId = getLastResultId();
-      if (lastResultId) {
-        console.log('Found pending result ID, fetching from backend:', lastResultId);
-        try {
-          const result = await api.getResult(lastResultId);
-          if (result && result.id) {
-            console.log('✅ Restored pending result:', result);
-            setGeneratedResult(result);
-            saveResultToLocalStorage(result);
-          } else {
-            // Result not found, clear the stored ID
-            clearLastResultId();
-          }
-        } catch (error) {
-          console.error('Failed to fetch pending result:', error);
-          // Clear the stored ID if we can't fetch it (might be invalid or expired)
-          clearLastResultId();
-        }
-      }
-    };
-
-    // Small delay to avoid race conditions with other state updates
-    const timeoutId = setTimeout(restorePendingResult, 100);
-    return () => clearTimeout(timeoutId);
-  }, []); // Run once on mount
 
   // State for format selection
   const [selectedFormats, setSelectedFormats] = useState({
@@ -146,7 +116,7 @@ export default function Upload() {
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
   const [showQuizOptions, setShowQuizOptions] = useState(false);
   const [showAudioOptions, setShowAudioOptions] = useState(false);
-  
+
   // Voice selection state - start empty (will use defaults from backend)
   const [hostVoiceId, setHostVoiceId] = useState('');
   const [guestVoiceId, setGuestVoiceId] = useState('');
@@ -201,7 +171,10 @@ export default function Upload() {
   };
 
   // FIXED: Main submission handler with proper data structure handling
-  const handleGenerate = async () => {
+  const handleGenerate = async (e) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     setError('');
     if (!file || !title || !isAnyFormatSelected()) {
       setError('Please upload a file, set a title, and select at least one format.');
@@ -231,22 +204,23 @@ export default function Upload() {
       console.log('Number of questions:', numQuestions);
       console.log('User ID:', user?.id);
       console.log('Folder ID:', folderId);
-      
+
       // Use voice IDs if provided and not empty, otherwise null (backend will use defaults)
       const finalHostVoiceId = selectedFormats.audio && hostVoiceId.trim() ? hostVoiceId.trim() : null;
       const finalGuestVoiceId = selectedFormats.audio && guestVoiceId.trim() ? guestVoiceId.trim() : null;
-      
+
       console.log('Host Voice ID:', finalHostVoiceId || 'using default');
       console.log('Guest Voice ID:', finalGuestVoiceId || 'using default');
 
       const data = await api.uploadFile(
-        file, 
-        title, 
-        formatsToGenerate, 
-        numQuestions, 
+        file,
+        title,
+        formatsToGenerate,
+        numQuestions,
         folderId,
         finalHostVoiceId,
-        finalGuestVoiceId
+        finalGuestVoiceId,
+        user?.id
       );
       console.log('Raw backend response:', data);
       console.log('Response keys:', Object.keys(data));
@@ -327,6 +301,9 @@ export default function Upload() {
       console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
       console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
       console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
+      console.log('Has audio data?', !!enrichedResult?.formats?.audio);
+      console.log('Audio URL:', enrichedResult?.formats?.audio?.url);
+      console.log('Audio error:', enrichedResult?.formats?.audio?.error);
 
       let finalResult;
       if (generatedResult && generatedResult.title === title) {
@@ -351,7 +328,7 @@ export default function Upload() {
       console.error('❌ Generation error:', err);
       const errorMessage = err.message || 'Failed to generate. Please try again.';
       setError(errorMessage);
-      
+
       // Show more helpful error message for audio generation
       if (selectedFormats.audio && (errorMessage.includes('audio') || errorMessage.includes('timeout'))) {
         setError('Audio generation failed. This may take longer for large documents. Please try again or check your voice IDs.');
@@ -479,6 +456,39 @@ export default function Upload() {
     setShowAudioModal(false);
     setIsAudioMinimized(false);
   };
+
+  const handleStartNew = () => {
+    // Clear local state
+    setFile(null);
+    setTitle('');
+    setGeneratedResult(null);
+    setError('');
+
+    // Clear selection
+    setSelectedFormats({
+      visual: {
+        mindmap: false,
+        chart: false,
+        diagram: false,
+        infographic: false,
+      },
+      audio: false,
+      video: false,
+      quiz: false,
+      flashcards: false,
+      reports: false,
+    });
+
+    // Clear storage
+    clearLastResultId();
+
+    // Reset file input if ref exists
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -665,7 +675,7 @@ export default function Upload() {
                     {generatedResult.formats.audio.error}
                   </div>
                 ) : (
-                  <AudioPlayer 
+                  <AudioPlayer
                     audioUrl={generatedResult.formats.audio.url}
                     title={title}
                     duration={generatedResult.formats.audio.duration}
@@ -867,7 +877,7 @@ export default function Upload() {
                           <p className="text-xs text-gray-600 mb-3">
                             Enter ElevenLabs voice IDs, or leave empty to use defaults
                           </p>
-                          
+
                           <label htmlFor="hostVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
                             Host Voice ID
                           </label>
@@ -879,7 +889,7 @@ export default function Upload() {
                             placeholder="jqcCZkN6Knx8BJ5TBdYR (default)"
                             className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                           />
-                          
+
                           <label htmlFor="guestVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
                             Guest Voice ID
                           </label>
@@ -921,6 +931,7 @@ export default function Upload() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleGenerate}
                     disabled={loading || !isAnyFormatSelected()}
                     className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
@@ -951,9 +962,6 @@ export default function Upload() {
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Generated Content</h3>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                      {Object.keys(generatedResult.formats).length} format{Object.keys(generatedResult.formats).length !== 1 ? 's' : ''}
-                    </span>
                   </div>
 
 
@@ -1014,30 +1022,37 @@ export default function Upload() {
                     )}
 
                     {/* Audio Card */}
-                    {generatedResult?.formats?.audio?.url && (
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-lg p-4 animate-fade-in">
+                    {generatedResult?.formats?.audio && (
+                      <div className={`bg-gradient-to-br ${generatedResult.formats.audio.error ? 'from-red-50 to-red-100 border-red-200' : 'from-blue-50 to-blue-100 border-blue-200'} border-2 rounded-lg p-4 animate-fade-in`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <Headphones className="w-5 h-5 text-blue-600" />
+                            <div className={`w-10 h-10 ${generatedResult.formats.audio.error ? 'bg-red-100' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+                              <Headphones className={`w-5 h-5 ${generatedResult.formats.audio.error ? 'text-red-600' : 'text-blue-600'}`} />
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900 text-sm">Podcast Audio</h4>
                               <p className="text-xs text-gray-600">
-                                {generatedResult.formats.audio.duration || 'Ready to play'}
+                                {generatedResult.formats.audio.error
+                                  ? 'Error generating audio'
+                                  : (generatedResult.formats.audio.duration || 'Ready to play')}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setShowAudioModal(true)}
-                              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                              aria-label="Play"
-                            >
-                              <Maximize2 className="w-4 h-4 text-blue-600" />
-                            </button>
+                            {generatedResult.formats.audio.url && (
+                              <button
+                                onClick={() => setShowAudioModal(true)}
+                                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                                aria-label="Play"
+                              >
+                                <Maximize2 className="w-4 h-4 text-blue-600" />
+                              </button>
+                            )}
                           </div>
                         </div>
+                        {generatedResult.formats.audio.error && (
+                          <p className="mt-2 text-xs text-red-600">{generatedResult.formats.audio.error}</p>
+                        )}
                       </div>
                     )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Gauge } from 'lucide-react';
 
 export default function AudioPlayer({ audioUrl, title, duration, hostVoiceId, guestVoiceId }) {
   const audioRef = useRef(null);
@@ -10,6 +10,10 @@ export default function AudioPlayer({ audioUrl, title, duration, hostVoiceId, gu
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+
+  const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -94,6 +98,15 @@ export default function AudioPlayer({ audioUrl, title, duration, hostVoiceId, gu
     }
   };
 
+  const handleSpeedChange = (speed) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.playbackRate = speed;
+    setPlaybackSpeed(speed);
+    setShowSpeedMenu(false);
+  };
+
   const formatTime = (seconds) => {
     if (isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -116,7 +129,6 @@ export default function AudioPlayer({ audioUrl, title, duration, hostVoiceId, gu
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
         <div className="text-sm text-gray-600 space-y-1">
-          {duration && <p>Duration: {duration}</p>}
           {(hostVoiceId || guestVoiceId) && (
             <p className="text-xs text-gray-500">
               Voices: {hostVoiceId ? 'Host selected' : ''} {guestVoiceId ? '| Guest selected' : ''}
@@ -177,6 +189,33 @@ export default function AudioPlayer({ audioUrl, title, duration, hostVoiceId, gu
               <div className="text-sm text-gray-700 font-medium">
                 {formatTime(currentTime)} / {formatTime(durationState)}
               </div>
+            </div>
+
+            {/* Playback Speed Control */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                className="flex items-center gap-1 px-3 py-2 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
+                aria-label="Playback speed"
+              >
+                <Gauge className="w-4 h-4" />
+                <span>{playbackSpeed}x</span>
+              </button>
+              {showSpeedMenu && (
+                <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[80px] z-10">
+                  {playbackSpeeds.map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => handleSpeedChange(speed)}
+                      className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-100 transition-colors ${
+                        playbackSpeed === speed ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'
+                      }`}
+                    >
+                      {speed}x
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Volume Control */}

@@ -52,22 +52,40 @@ def get_folders():
 @folders_bp.route('/folders/<folder_id>', methods=['DELETE'])
 def delete_folder(folder_id):
     try:
+        print(f"=== DELETE FOLDER START ===")
         print(f"Attempting to delete folder: {folder_id}")
+        
+        # First, verify the folder exists
+        check_response = supabase.table("folders").select("*").eq("id", folder_id).execute()
+        print(f"Folder check response: {check_response.data}")
+        
+        if not check_response.data:
+            print(f"Folder {folder_id} not found")
+            return jsonify({"error": "Folder not found"}), 404
         
         # First, move any documents in this folder to no folder (set folder_id to null)
         try:
-            supabase.table("results").update({"folder_id": None}).eq("folder_id", folder_id).execute()
-            print(f"Moved documents out of folder {folder_id}")
+            update_response = supabase.table("results").update({"folder_id": None}).eq("folder_id", folder_id).execute()
+            print(f"Moved documents out of folder {folder_id}: {update_response.data}")
         except Exception as move_error:
             print(f"Warning: Could not move documents: {move_error}")
         
         # Now delete the folder
+        print(f"Executing delete on folder {folder_id}...")
         response = supabase.table("folders").delete().eq("id", folder_id).execute()
-        print(f"Delete response: {response}")
+        print(f"Delete response data: {response.data}")
         
-        # Supabase returns empty data on successful delete sometimes
+        # Verify the folder was actually deleted
+        verify_response = supabase.table("folders").select("id").eq("id", folder_id).execute()
+        if verify_response.data:
+            print(f"ERROR: Folder still exists after delete!")
+            return jsonify({"error": "Failed to delete folder - it still exists"}), 500
+        
+        print(f"=== DELETE FOLDER SUCCESS ===")
         return jsonify({"message": "Folder deleted successfully", "id": folder_id}), 200
 
     except Exception as e:
         print(f"Error deleting folder: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
