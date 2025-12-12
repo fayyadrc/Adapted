@@ -4,7 +4,8 @@ import { supabase } from '../supabaseConfig';
 
 export default function Signup({ onLogin }) {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -27,7 +28,7 @@ export default function Signup({ onLogin }) {
     setLoading(true);
 
     // Validation
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
       setError('Please fill in all fields');
       setLoading(false);
       return;
@@ -45,6 +46,8 @@ export default function Signup({ onLogin }) {
       return;
     }
 
+    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
     try {
       // Sign up with Supabase
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -52,7 +55,9 @@ export default function Signup({ onLogin }) {
         password: formData.password,
         options: {
           data: {
-            name: formData.name,
+            name: fullName,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
           }
         }
       });
@@ -72,10 +77,12 @@ export default function Signup({ onLogin }) {
         // Store user info and navigate to dashboard
         onLogin({ 
           email: data.user.email, 
-          name: formData.name,
+          name: fullName,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           id: data.user.id
         });
-        navigate('/dashboard');
+        navigate('/home');
       }
     } catch (err) {
       setError(err.message || 'Sign up failed. Please try again.');
@@ -85,10 +92,10 @@ export default function Signup({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="h-screen bg-gray-100 flex items-center justify-center px-4 overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-2xl">A</span>
@@ -106,20 +113,37 @@ export default function Signup({ onLogin }) {
             </div>
           )}
 
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="John Doe"
-              disabled={loading}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                First Name
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="John"
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Doe"
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <div>

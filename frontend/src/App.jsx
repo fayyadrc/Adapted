@@ -3,18 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Header from './components/Header';
 import Login from './components/Login';
 import Signup from './components/Signup';
-import Dashboard from './components/Dashboard';
 import Upload from './components/Upload';
-import Results from './components/Results';
+import Library from './components/Library';
 import ResultDetail from './components/ResultDetail';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import HomePage from './components/HomePage';
-import LessonsPage from './components/LessonsPage';
 import './App.css';
-
-// Import test helpers for development/testing
-import './utils/testDataHelper';
 
 import { supabase } from './supabaseConfig';
 
@@ -79,29 +74,16 @@ function App() {
             }
           />
           <Route
-            path="/lessons"
+            path="/library"
             element={
               <ProtectedRoute>
-                <LessonsPage user={user} />
+                <Library user={user} />
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard user={user} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/upload"
-            element={
-              <ProtectedRoute>
-                <Upload />
-              </ProtectedRoute>
-            }
-          />
+          {/* Redirect old routes to library */}
+          <Route path="/lessons" element={<Navigate to="/library" replace />} />
+          <Route path="/results" element={<Navigate to="/library" replace />} />
           <Route
             path="/results/:id"
             element={
@@ -111,10 +93,10 @@ function App() {
             }
           />
           <Route
-            path="/results"
+            path="/upload"
             element={
               <ProtectedRoute>
-                <Results />
+                <Upload user={user} />
               </ProtectedRoute>
             }
           />

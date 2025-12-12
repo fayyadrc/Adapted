@@ -218,15 +218,18 @@ export default function Upload() {
     if (selectedFormats.flashcards) formatsToGenerate.push('flashcards');
     if (selectedFormats.reports) formatsToGenerate.push('reports');
 
-    if (Object.values(selectedFormats.visual).some(Boolean)) {
-      formatsToGenerate.push('visual');
-    }
+    // Send specific visual types instead of generic 'visual'
+    if (selectedFormats.visual.mindmap) formatsToGenerate.push('mindmap');
+    if (selectedFormats.visual.infographic) formatsToGenerate.push('infographic');
+    if (selectedFormats.visual.chart) formatsToGenerate.push('chart');
+    if (selectedFormats.visual.diagram) formatsToGenerate.push('diagram');
 
     try {
       console.log('=== UPLOAD DEBUG ===');
       console.log('Selected formats:', selectedFormats);
       console.log('Formats to generate:', formatsToGenerate);
       console.log('Number of questions:', numQuestions);
+      console.log('User ID:', user?.id);
       console.log('Folder ID:', folderId);
       
       // Use voice IDs if provided and not empty, otherwise null (backend will use defaults)
@@ -341,10 +344,6 @@ export default function Upload() {
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
-
-
-      saveResultToLocalStorage(finalResult);
-
 
       console.log('✅ Content generated successfully. All formats available in Generated Content section.');
 

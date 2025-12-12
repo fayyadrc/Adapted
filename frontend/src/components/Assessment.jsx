@@ -59,8 +59,8 @@ export default function Assessment() {
                   <Link to="/upload" className="btn-primary">
                     Upload Content
                   </Link>
-                  <Link to="/dashboard" className="btn-secondary">
-                    Back to Dashboard
+                  <Link to="/home" className="btn-secondary">
+                    Back to Home
                   </Link>
                 </div>
               </div>

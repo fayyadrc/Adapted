@@ -58,9 +58,9 @@ def upload_and_process():
         "formats": {}
     }
 
-    # Generate visual format (mind map)
-    if "visual" in requested_formats:
-        print("=== Generating VISUAL format ===")
+    # Generate visual format (mind map) - only when 'mindmap' is explicitly requested
+    if "mindmap" in requested_formats:
+        print("=== Generating MINDMAP format ===")
         try:
             mindmap_json_string = generate_mindmap_from_text(text_content)
             print(f"Mind map JSON string: {mindmap_json_string[:200]}...")
@@ -83,7 +83,7 @@ def upload_and_process():
                 "icon": "🗺️"
             }
     else:
-        print(f"Visual NOT in requested formats: {requested_formats}")
+        print(f"Mindmap NOT in requested formats: {requested_formats}")
 
     # Generate audio format (podcast)
     if "audio" in requested_formats:
@@ -203,12 +203,18 @@ def upload_and_process():
     if folder_id == 'null' or folder_id == 'undefined':
         folder_id = None
 
+    # Get user_id from request
+    user_id = request.form.get('user_id')
+    if user_id == 'null' or user_id == 'undefined':
+        user_id = None
+
     # --- Store the results in Supabase ---
     try:
         data_to_insert = {
             "title": title,
             "content": results_content,
-            "folder_id": folder_id
+            "folder_id": folder_id,
+            "user_id": user_id
         }
         
         print(f"Inserting into Supabase with folder_id: {folder_id}...")
@@ -276,11 +282,19 @@ def get_results(result_id):
 @upload_bp.route('/results', methods=['GET'])
 def list_results():
     """
-    List all results from Supabase.
+    List all results from Supabase, filtered by user_id if provided.
     """
     try:
+        user_id = request.args.get('user_id')
+        
         # Select specific fields to reduce payload size
-        response = supabase.table("results").select("id, title, created_at, content, folder_id").order("created_at", desc=True).execute()
+        query = supabase.table("results").select("id, title, created_at, content, folder_id, user_id")
+        
+        # Filter by user_id if provided
+        if user_id:
+            query = query.eq("user_id", user_id)
+        
+        response = query.order("created_at", desc=True).execute()
         
         if not response.data:
             return jsonify([]), 200
@@ -292,7 +306,8 @@ def list_results():
                 "title": record['title'],
                 "created_at": record['created_at'],
                 "formats": record['content'].get('formats', {}) if record['content'] else {},
-                "folder_id": record.get('folder_id')
+                "folder_id": record.get('folder_id'),
+                "user_id": record.get('user_id')
             })
             
         return jsonify(results), 200

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
+import { Brain, FileQuestion, FileText, Sparkles, Maximize2, Minimize2, X, Download } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
@@ -53,8 +54,6 @@ const formatAbsoluteDate = (iso) => {
 };
 
 
-
-
 export default function ResultDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -68,6 +67,12 @@ export default function ResultDetail() {
   const [bookmarked, setBookmarked] = useState(false);
   const [shareStatus, setShareStatus] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Modal states - must be declared at top level, before any conditional returns
+  const [showMindMapModal, setShowMindMapModal] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showInfographicModal, setShowInfographicModal] = useState(false);
 
   useEffect(() => {
     if (location.state) {
@@ -132,6 +137,10 @@ export default function ResultDetail() {
     viewerRef.current?.resetView?.();
   };
 
+  // Derived values
+  const resultTitle = result?.title || 'Generated Content';
+  const hasFormats = result?.formats && Object.keys(result.formats).length > 0;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -151,20 +160,112 @@ export default function ResultDetail() {
           <p className="text-gray-600 mb-6">
             This result may have been deleted or doesn't exist.
           </p>
-          <Link to="/results" className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-            Back to Results
+          <Link to="/library" className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            Back to Library
           </Link>
         </div>
       </div>
     );
   }
 
-  const resultTitle = result?.title || 'Generated Content';
-  const hasFormats = result?.formats && Object.keys(result.formats).length > 0;
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Mind Map Modal */}
+      {showMindMapModal && result?.formats?.visual?.data && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Mind Map: {resultTitle}</h2>
+                <p className="text-sm text-gray-500">Interactive visualization of your content</p>
+              </div>
+              <button onClick={() => setShowMindMapModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <MindMapViewer ref={viewerRef} mindMapData={result.formats.visual.data} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Modal */}
+      {showQuizModal && result?.formats?.quiz?.data && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Quiz: {resultTitle}</h2>
+                <p className="text-sm text-gray-500">Test your knowledge</p>
+              </div>
+              <button onClick={() => setShowQuizModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <QuizViewer quizData={result.formats.quiz.data} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Modal */}
+      {showSummaryModal && result?.formats?.reports?.data && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Summary: {resultTitle}</h2>
+                <p className="text-sm text-gray-500">Comprehensive summary report</p>
+              </div>
+              <button onClick={() => setShowSummaryModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <SummaryViewer summaryData={result.formats.reports.data} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Infographic Modal */}
+      {showInfographicModal && result?.formats?.infographic?.data && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Infographic: {resultTitle}</h2>
+                <p className="text-sm text-gray-500">AI-generated visual summary</p>
+              </div>
+              <button onClick={() => setShowInfographicModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-gray-50">
+              <img
+                src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
+                alt="Infographic"
+                className="max-w-full h-auto shadow-lg rounded-lg"
+              />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <a
+                href={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
+                download="infographic.jpg"
+                className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1">{resultTitle}</h1>
@@ -177,154 +278,122 @@ export default function ResultDetail() {
               </span>
             )}
             <div className="flex gap-2">
-              <button
-                onClick={handleBookmark}
-                className={`p-2 rounded-lg transition-colors ${bookmarked
-                  ? 'bg-purple-100 text-purple-600'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                title="Bookmark this result"
+              <Link
+                to="/library"
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
               >
-                <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-              </button>
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                title="Share this result"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.589 12.938 10 12.502 10 12c0-.502-.411-.938-1.316-1.342m0 2.684a3 3 0 110-2.684m9.032-6.674l-9.032 4.026m0 7.288l9.032-4.026M5.106 18.894l7.572-4.297m0-6.882l-7.572 4.297" />
-                </svg>
-              </button>
+                ← Back
+              </Link>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
-          <div className="space-y-6">
-            {!hasFormats && (
-              <div className="card">
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No formats generated yet</h3>
-                  <p className="text-gray-600 mb-4">
-                    This result doesn't have any generated formats yet.
-                  </p>
-                  <Link to="/upload" className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                    Upload New Content
-                  </Link>
+        {!hasFormats ? (
+          <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No formats generated yet</h3>
+            <p className="text-gray-600 mb-4">This result doesn't have any generated formats yet.</p>
+            <Link to="/upload" className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+              Upload New Content
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Details Section */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Result ID</span>
+                  <span className="font-medium text-gray-900 truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Uploaded</span>
+                  <span className="font-medium text-gray-900">{absoluteUploadTime}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-1">Document</span>
+                  <span className="font-medium text-gray-900 truncate" title={resultTitle}>{resultTitle}</span>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Mind Map Format */}
-            {result?.formats?.visual && (
-              <div className="card">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {result.formats.visual.type || 'Mind Map'}
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {result.formats.visual.description || 'Visual representation of key concepts'}
-                    </p>
-                  </div>
-                </div>
+            {/* Format Cards Grid - Similar to Upload.jsx */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Generated Content</h3>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  {Object.keys(result.formats).length} format{Object.keys(result.formats).length !== 1 ? 's' : ''}
+                </span>
+              </div>
 
-                {result.formats.visual.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.visual.error}
-                  </div>
-                ) : result.formats.visual.data ? (
-                  <>
-                    <MindMapViewer ref={viewerRef} mindMapData={result.formats.visual.data} />
-                    <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500">
-                      <button
-                        onClick={handleResetView}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Re-center view
-                      </button>
-                      <span>•</span>
-                      <button
-                        onClick={handleOpenFullscreen}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Fullscreen
-                      </button>
-                      <span>•</span>
-                      <button
-                        onClick={handleDownloadMindMap}
-                        className="text-purple-600 font-medium hover:text-purple-700"
-                      >
-                        Download
-                      </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Mind Map Card */}
+                {result?.formats?.visual?.data && (
+                  <div
+                    onClick={() => setShowMindMapModal(true)}
+                    className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Brain className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
+                          <p className="text-xs text-gray-600">Interactive view</p>
+                        </div>
+                      </div>
+                      <Maximize2 className="w-4 h-4 text-purple-600" />
                     </div>
-                  </>
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Mind map is still processing...
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Quiz Format */}
-            {result?.formats?.quiz && (
-              <div className="card">
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {result.formats.quiz.type || 'Interactive Quiz'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {result.formats.quiz.description || 'Test your understanding'}
-                  </p>
-                  {result.formats.quiz.questionCount && (
-                    <p className="text-sm text-purple-600 font-medium mt-1">
-                      {result.formats.quiz.questionCount} questions
-                    </p>
-                  )}
-                </div>
-
-                {result.formats.quiz.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.quiz.error}
-                  </div>
-                ) : result.formats.quiz.data ? (
-                  <QuizViewer quizData={result.formats.quiz.data} />
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Quiz is still processing...
+                {/* Quiz Card */}
+                {result?.formats?.quiz?.data && (
+                  <div
+                    onClick={() => setShowQuizModal(true)}
+                    className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                          <FileQuestion className="w-5 h-5 text-cyan-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
+                          <p className="text-xs text-gray-600">
+                            {result.formats.quiz.data.questions?.length || 0} questions
+                          </p>
+                        </div>
+                      </div>
+                      <Maximize2 className="w-4 h-4 text-cyan-600" />
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Summary/Report Format */}
-            {result?.formats?.reports && (
-              <div className="card">
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {result.formats.reports.type || 'Summary Report'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {result.formats.reports.description || 'Comprehensive summary'}
-                  </p>
-                </div>
-
-                {result.formats.reports.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {result.formats.reports.error}
-                  </div>
-                ) : result.formats.reports.data ? (
-                  <SummaryViewer summaryData={result.formats.reports.data} />
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    Summary is still processing...
+                {/* Summary Card */}
+                {result?.formats?.reports?.data && (
+                  <div
+                    onClick={() => setShowSummaryModal(true)}
+                    className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm">Summary</h4>
+                          <p className="text-xs text-gray-600">
+                            {result.formats.reports.data.title || 'Report ready'}
+                          </p>
+                        </div>
+                      </div>
+                      <Maximize2 className="w-4 h-4 text-emerald-600" />
+                    </div>
                   </div>
                 )}
               </div>
@@ -420,22 +489,36 @@ export default function ResultDetail() {
                     className="font-medium text-gray-900 truncate text-right"
                     title={resultTitle}
                   >
-                    {resultTitle}
-                  </span>
-                </div>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-pink-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
+                            <p className="text-xs text-gray-600">Visual summary</p>
+                          </div>
+                        </div>
+                        <Maximize2 className="w-4 h-4 text-pink-600" />
+                      </div>
+                      {/* Preview Image */}
+                      <div className="relative">
+                        <img
+                          src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
+                          alt="Infographic Preview"
+                          className="w-full h-24 object-cover rounded-md border border-pink-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="card">
-              <Link
-                to="/results"
-                className="w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                ← Back to All Results
-              </Link>
-            </div>
-          </div>
-        </div>
+
+          </>
+        )}
       </div>
     </div>
   );
