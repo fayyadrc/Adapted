@@ -4,7 +4,9 @@ import traceback
 from flask import Blueprint, request, jsonify
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text
+from ..services.audio_service import generate_podcast_audio
 from .. import supabase
+from config import Config
 
 upload_bp = Blueprint('upload', __name__)
 
@@ -83,28 +85,60 @@ def upload_and_process():
     else:
         print(f"Mindmap NOT in requested formats: {requested_formats}")
 
-    # Generate audio format (summary for TTS)
+    # Generate audio format (podcast)
     if "audio" in requested_formats:
+        print("=== Generating AUDIO format ===")
         try:
-            summary_data = generate_summary_from_text(text_content)
-            # Create audio-friendly text
-            audio_text = f"{summary_data.get('title', 'Summary')}. {summary_data.get('summary', '')} "
-            audio_text += "Key points include: " + ". ".join(summary_data.get('key_points', []))
+            # Get voice IDs from request, fallback to config defaults if not provided or empty
+            host_voice_id = request.form.get('host_voice_id')
+            if not host_voice_id or host_voice_id.strip() == '':
+                host_voice_id = Config.ELEVENLABS_HOST_VOICE
+            
+            guest_voice_id = request.form.get('guest_voice_id')
+            if not guest_voice_id or guest_voice_id.strip() == '':
+                guest_voice_id = Config.ELEVENLABS_GUEST_VOICE
+            
+            print(f"Generating podcast audio with Host: {host_voice_id}, Guest: {guest_voice_id}")
+            
+            # Generate podcast audio
+            audio_bytes = generate_podcast_audio(text_content, host_voice_id, guest_voice_id)
+            
+            # Upload to Supabase Storage
+            filename = f"audio-{uuid.uuid4()}.mp3"
+            bucket_name = "generated-content"
+            
+            print(f"Uploading audio to Supabase Storage: {filename}")
+            supabase.storage.from_(bucket_name).upload(
+                path=filename,
+                file=audio_bytes,
+                file_options={"content-type": "audio/mpeg"}
+            )
+            
+            # Get public URL
+            public_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+            print(f"Audio uploaded successfully: {public_url}")
+            
+            # Estimate duration (rough: ~150 words per minute, ~0.5s per word)
+            estimated_duration = len(text_content.split()) * 0.5
+            minutes = int(estimated_duration // 60)
+            seconds = int(estimated_duration % 60)
+            duration_str = f"{minutes}:{seconds:02d}" if minutes > 0 else f"0:{seconds:02d}"
             
             results_content["formats"]["audio"] = {
-                "type": "Audio Summary",
-                "description": "Professional narration of your content",
-                "data": {
-                    "text": audio_text,
-                    "summary": summary_data
-                },
-                "duration": f"{len(audio_text.split()) * 0.5:.0f}:00",  # Rough estimate
+                "type": "Podcast Audio",
+                "description": "Two-speaker podcast conversation",
+                "url": public_url,
+                "duration": duration_str,
+                "host_voice_id": host_voice_id,
+                "guest_voice_id": guest_voice_id,
                 "icon": "🎙️"
             }
+            print(f"Audio format added to results")
         except Exception as e:
             print(f"Error generating audio content: {e}")
+            traceback.print_exc()
             results_content["formats"]["audio"] = {
-                "type": "Audio Summary", 
+                "type": "Podcast Audio",
                 "description": "Error generating audio content",
                 "error": str(e),
                 "icon": "🎙️"

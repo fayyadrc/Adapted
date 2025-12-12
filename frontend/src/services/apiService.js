@@ -5,18 +5,15 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
-  async uploadFile(file, title, formats, numQuestions = 5, userId = null, folderId = null) {
+  async uploadFile(file, title, formats, numQuestions = 5, folderId = null, hostVoiceId = null, guestVoiceId = null) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('formats', JSON.stringify(formats));
     formData.append('num_questions', numQuestions);
-    if (userId) {
-      formData.append('user_id', userId);
-    }
-    if (folderId) {
-      formData.append('folder_id', folderId);
-    }
+    if (folderId) formData.append('folder_id', folderId);
+    if (hostVoiceId) formData.append('host_voice_id', hostVoiceId);
+    if (guestVoiceId) formData.append('guest_voice_id', guestVoiceId);
 
     console.log('=== API SERVICE DEBUG ===');
     console.log('Sending to /api/upload:');
@@ -25,8 +22,8 @@ class ApiService {
     console.log('  formats:', formats);
     console.log('  formats JSON:', JSON.stringify(formats));
     console.log('  num_questions:', numQuestions);
-    console.log('  user_id:', userId);
-    console.log('  folder_id:', folderId);
+    console.log('  host_voice_id:', hostVoiceId);
+    console.log('  guest_voice_id:', guestVoiceId);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
