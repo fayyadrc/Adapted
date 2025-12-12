@@ -396,10 +396,29 @@ export default function ResultDetail() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Audio Format */}
+                {/* Infographic Card */}
+                {result?.formats?.infographic?.data && (
+                  <div
+                    onClick={() => setShowInfographicModal(true)}
+                    className="bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-pink-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
+                          <p className="text-xs text-gray-600">Visual summary</p>
+                        </div>
+                      </div>
+                      <Maximize2 className="w-4 h-4 text-pink-600" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             {result?.formats?.audio && (
               <div className="card">
                 <div className="mb-4">
@@ -435,88 +454,6 @@ export default function ResultDetail() {
                 )}
               </div>
             )}
-          </div>
-
-          <div className="space-y-6 lg:sticky lg:top-6">
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Generated Formats</h3>
-              {hasFormats ? (
-                <div className="space-y-2">
-                  {result.formats.visual && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                      <span className="text-gray-700">Mind Map</span>
-                    </div>
-                  )}
-                  {result.formats.quiz && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      <span className="text-gray-700">Interactive Quiz</span>
-                    </div>
-                  )}
-                  {result.formats.reports && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      <span className="text-gray-700">Summary Report</span>
-                    </div>
-                  )}
-                  {result.formats.audio && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      <span className="text-gray-700">Podcast Audio</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No formats available</p>
-              )}
-            </div>
-
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Details</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-600">Result ID:</span>
-                  <span className="font-medium text-gray-900 text-right truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-600">Uploaded:</span>
-                  <span className="font-medium text-gray-900 text-right">{absoluteUploadTime}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-600">File Name:</span>
-                  <span
-                    className="font-medium text-gray-900 truncate text-right"
-                    title={resultTitle}
-                  >
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-pink-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
-                            <p className="text-xs text-gray-600">Visual summary</p>
-                          </div>
-                        </div>
-                        <Maximize2 className="w-4 h-4 text-pink-600" />
-                      </div>
-                      {/* Preview Image */}
-                      <div className="relative">
-                        <img
-                          src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
-                          alt="Infographic Preview"
-                          className="w-full h-24 object-cover rounded-md border border-pink-200"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-
           </>
         )}
       </div>
