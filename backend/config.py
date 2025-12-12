@@ -12,4 +12,9 @@ class Config:
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
     # Use service_role key to bypass RLS, fallback to anon key
     SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_KEY') or os.environ.get('SUPABASE_KEY')
+    
+    # ElevenLabs Configuration
+    ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
+    ELEVENLABS_HOST_VOICE = os.environ.get('ELEVENLABS_HOST_VOICE', 'jqcCZkN6Knx8BJ5TBdYR')
+    ELEVENLABS_GUEST_VOICE = os.environ.get('ELEVENLABS_GUEST_VOICE', 'EkK5I93UQWFDigLMpZcX')
 

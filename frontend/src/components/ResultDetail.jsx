@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
+import AudioPlayer from './AudioPlayer';
 import apiService from '../services/apiService';
 
 const LAST_RESULT_STORAGE_KEY = 'adapted:last-result';
@@ -328,6 +329,43 @@ export default function ResultDetail() {
                 )}
               </div>
             )}
+
+            {/* Audio Format */}
+            {result?.formats?.audio && (
+              <div className="card">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {result.formats.audio.type || 'Podcast Audio'}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {result.formats.audio.description || 'Two-speaker podcast conversation'}
+                  </p>
+                  {result.formats.audio.duration && (
+                    <p className="text-sm text-blue-600 font-medium mt-1">
+                      Duration: {result.formats.audio.duration}
+                    </p>
+                  )}
+                </div>
+
+                {result.formats.audio.error ? (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {result.formats.audio.error}
+                  </div>
+                ) : result.formats.audio.url ? (
+                  <AudioPlayer 
+                    audioUrl={result.formats.audio.url}
+                    title={resultTitle}
+                    duration={result.formats.audio.duration}
+                    hostVoiceId={result.formats.audio.host_voice_id}
+                    guestVoiceId={result.formats.audio.guest_voice_id}
+                  />
+                ) : (
+                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-600">
+                    Audio is still processing...
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-6 lg:sticky lg:top-6">
@@ -351,6 +389,12 @@ export default function ResultDetail() {
                     <div className="flex items-center gap-2 text-sm">
                       <div className="w-2 h-2 bg-green-600 rounded-full"></div>
                       <span className="text-gray-700">Summary Report</span>
+                    </div>
+                  )}
+                  {result.formats.audio && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      <span className="text-gray-700">Podcast Audio</span>
                     </div>
                   )}
                 </div>

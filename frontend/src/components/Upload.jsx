@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import SummaryViewer from './SummaryViewer';
+import AudioPlayer from './AudioPlayer';
+import QuizViewer from './QuizViewer';
 
 import api from '../services/apiService';
 
@@ -43,9 +45,32 @@ const saveResultToLocalStorage = (result) => {
     }
 
     localStorage.setItem('adapted:results', JSON.stringify(existingResults));
+    
+    // Save the last result ID so we can restore it if user navigates away
+    if (result.id) {
+      localStorage.setItem('adapted:last-result-id', result.id);
+    }
+    
     console.log('✅ Result saved to localStorage');
   } catch (error) {
     console.error('Failed to save result to localStorage:', error);
+  }
+};
+
+const getLastResultId = () => {
+  try {
+    return localStorage.getItem('adapted:last-result-id');
+  } catch (error) {
+    console.error('Failed to get last result ID:', error);
+    return null;
+  }
+};
+
+const clearLastResultId = () => {
+  try {
+    localStorage.removeItem('adapted:last-result-id');
+  } catch (error) {
+    console.error('Failed to clear last result ID:', error);
   }
 };
 
@@ -60,13 +85,49 @@ export default function Upload() {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showInfographicModal, setShowInfographicModal] = useState(false);
+  const [showAudioModal, setShowAudioModal] = useState(false);
   const [isMindMapMinimized, setIsMindMapMinimized] = useState(false);
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
+  const [isAudioMinimized, setIsAudioMinimized] = useState(false);
   const [numQuestions, setNumQuestions] = useState(5);
   const fileInputRef = useRef(null);
   const location = useLocation();
   const folderId = location.state?.folderId;
+
+  // Check for pending result on mount (if user navigated away during generation)
+  useEffect(() => {
+    const restorePendingResult = async () => {
+      // Only restore if we don't already have a result and we're not currently loading
+      if (generatedResult || loading) {
+        return;
+      }
+
+      const lastResultId = getLastResultId();
+      if (lastResultId) {
+        console.log('Found pending result ID, fetching from backend:', lastResultId);
+        try {
+          const result = await api.getResult(lastResultId);
+          if (result && result.id) {
+            console.log('✅ Restored pending result:', result);
+            setGeneratedResult(result);
+            saveResultToLocalStorage(result);
+          } else {
+            // Result not found, clear the stored ID
+            clearLastResultId();
+          }
+        } catch (error) {
+          console.error('Failed to fetch pending result:', error);
+          // Clear the stored ID if we can't fetch it (might be invalid or expired)
+          clearLastResultId();
+        }
+      }
+    };
+
+    // Small delay to avoid race conditions with other state updates
+    const timeoutId = setTimeout(restorePendingResult, 100);
+    return () => clearTimeout(timeoutId);
+  }, []); // Run once on mount
 
   // State for format selection
   const [selectedFormats, setSelectedFormats] = useState({
@@ -84,6 +145,11 @@ export default function Upload() {
   });
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
   const [showQuizOptions, setShowQuizOptions] = useState(false);
+  const [showAudioOptions, setShowAudioOptions] = useState(false);
+  
+  // Voice selection state - start empty (will use defaults from backend)
+  const [hostVoiceId, setHostVoiceId] = useState('');
+  const [guestVoiceId, setGuestVoiceId] = useState('');
 
   // Mock user assessment data
   const userAssessment = { recommended: ['visual'] };
@@ -143,6 +209,7 @@ export default function Upload() {
     }
 
     setLoading(true);
+    setError(''); // Clear any previous errors
 
     const formatsToGenerate = [];
     if (selectedFormats.audio) formatsToGenerate.push('audio');
@@ -161,8 +228,23 @@ export default function Upload() {
       console.log('Formats to generate:', formatsToGenerate);
       console.log('Number of questions:', numQuestions);
       console.log('Folder ID:', folderId);
+      
+      // Use voice IDs if provided and not empty, otherwise null (backend will use defaults)
+      const finalHostVoiceId = selectedFormats.audio && hostVoiceId.trim() ? hostVoiceId.trim() : null;
+      const finalGuestVoiceId = selectedFormats.audio && guestVoiceId.trim() ? guestVoiceId.trim() : null;
+      
+      console.log('Host Voice ID:', finalHostVoiceId || 'using default');
+      console.log('Guest Voice ID:', finalGuestVoiceId || 'using default');
 
-      const data = await api.uploadFile(file, title, formatsToGenerate, numQuestions, folderId);
+      const data = await api.uploadFile(
+        file, 
+        title, 
+        formatsToGenerate, 
+        numQuestions, 
+        folderId,
+        finalHostVoiceId,
+        finalGuestVoiceId
+      );
       console.log('Raw backend response:', data);
       console.log('Response keys:', Object.keys(data));
       console.log('Has formats key?', 'formats' in data);
@@ -172,9 +254,15 @@ export default function Upload() {
       const enrichedResult = {
         id: data?.id || `local-${Date.now()}`,
         title: title,
-        uploadedAt: new Date().toISOString(),
+        uploadedAt: data?.created_at || new Date().toISOString(),
+        created_at: data?.created_at || new Date().toISOString(),
         formats: {}
       };
+
+      // Save result ID immediately so we can restore it if user navigates away
+      if (enrichedResult.id) {
+        saveResultToLocalStorage(enrichedResult);
+      }
 
       // Check if backend returned proper format structure
       if (data?.formats) {
@@ -262,7 +350,13 @@ export default function Upload() {
 
     } catch (err) {
       console.error('❌ Generation error:', err);
-      setError(err.message || 'Failed to generate. Please try again.');
+      const errorMessage = err.message || 'Failed to generate. Please try again.';
+      setError(errorMessage);
+      
+      // Show more helpful error message for audio generation
+      if (selectedFormats.audio && (errorMessage.includes('audio') || errorMessage.includes('timeout'))) {
+        setError('Audio generation failed. This may take longer for large documents. Please try again or check your voice IDs.');
+      }
     } finally {
       setLoading(false);
     }
@@ -282,7 +376,14 @@ export default function Upload() {
       // Show options when selecting, hide when deselecting
       setShowQuizOptions(newQuizState);
       console.log('Show quiz options:', newQuizState);
-    } else if (formatKey === 'audio' || formatKey === 'video' || formatKey === 'flashcards') {
+    } else if (formatKey === 'audio') {
+      const newAudioState = !selectedFormats.audio;
+      setSelectedFormats(prev => ({
+        ...prev,
+        audio: newAudioState
+      }));
+      setShowAudioOptions(newAudioState);
+    } else if (formatKey === 'video' || formatKey === 'flashcards') {
       alert('Coming Soon');
     } else if (formatKey === 'reports') {
       setSelectedFormats(prev => ({
@@ -364,6 +465,20 @@ export default function Upload() {
 
   const handleCloseInfographic = () => {
     setShowInfographicModal(false);
+  };
+
+  const handleMinimizeAudio = () => {
+    setIsAudioMinimized(true);
+  };
+
+  const handleMaximizeAudio = () => {
+    setShowAudioModal(true);
+    setIsAudioMinimized(false);
+  };
+
+  const handleCloseAudio = () => {
+    setShowAudioModal(false);
+    setIsAudioMinimized(false);
   };
 
   return (
@@ -521,6 +636,44 @@ export default function Upload() {
                   <Sparkles className="w-4 h-4" />
                   Open in New Tab
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Audio Modal */}
+        {showAudioModal && !isAudioMinimized && generatedResult?.formats?.audio?.url && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Podcast Audio: {title}</h2>
+                  <p className="text-sm text-gray-500">Two-speaker podcast conversation</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleMinimizeAudio}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Minimize"
+                  >
+                    <Minimize2 className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                {generatedResult.formats.audio.error ? (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {generatedResult.formats.audio.error}
+                  </div>
+                ) : (
+                  <AudioPlayer 
+                    audioUrl={generatedResult.formats.audio.url}
+                    title={title}
+                    duration={generatedResult.formats.audio.duration}
+                    hostVoiceId={generatedResult.formats.audio.host_voice_id}
+                    guestVoiceId={generatedResult.formats.audio.guest_voice_id}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -698,16 +851,50 @@ export default function Upload() {
                       )}
                     </div>
 
-                    <FormatSelectionCard
-                      title="Podcast Audio"
-                      description="Listen to your notes"
-                      icon={Headphones}
-                      color="blue"
-                      onClick={() => handleFormatClick('audio')}
-                      isRecommended={isRecommended('audio')}
-                      isSelected={selectedFormats.audio}
-                      isComingSoon={true}
-                    />
+                    <div>
+                      <FormatSelectionCard
+                        title="Podcast Audio"
+                        description="Listen to your notes"
+                        icon={Headphones}
+                        color="blue"
+                        onClick={() => handleFormatClick('audio')}
+                        isRecommended={isRecommended('audio')}
+                        isSelected={selectedFormats.audio}
+                      />
+
+                      {/* Audio Options - Voice Selection */}
+                      {showAudioOptions && selectedFormats.audio && (
+                        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in">
+                          <p className="text-xs text-gray-600 mb-3">
+                            Enter ElevenLabs voice IDs, or leave empty to use defaults
+                          </p>
+                          
+                          <label htmlFor="hostVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                            Host Voice ID
+                          </label>
+                          <input
+                            type="text"
+                            id="hostVoice"
+                            value={hostVoiceId}
+                            onChange={(e) => setHostVoiceId(e.target.value)}
+                            placeholder="jqcCZkN6Knx8BJ5TBdYR (default)"
+                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                          />
+                          
+                          <label htmlFor="guestVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                            Guest Voice ID
+                          </label>
+                          <input
+                            type="text"
+                            id="guestVoice"
+                            value={guestVoiceId}
+                            onChange={(e) => setGuestVoiceId(e.target.value)}
+                            placeholder="EkK5I93UQWFDigLMpZcX (default)"
+                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </div>
 
                     <FormatSelectionCard
                       title="Reports"
@@ -740,9 +927,16 @@ export default function Upload() {
                     className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
                   >
                     {loading ? (
-                      <span className="flex items-center justify-center">
-                        <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                        Generating...
+                      <span className="flex flex-col items-center justify-center">
+                        <span className="flex items-center justify-center mb-1">
+                          <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                          Generating content...
+                        </span>
+                        {selectedFormats.audio && (
+                          <span className="text-xs opacity-90 mt-1">
+                            Audio generation may take 1-3 minutes, please wait...
+                          </span>
+                        )}
                       </span>
                     ) : (
                       'Generate Content'
@@ -821,7 +1015,7 @@ export default function Upload() {
                     )}
 
                     {/* Audio Card */}
-                    {generatedResult?.formats?.audio?.data && (
+                    {generatedResult?.formats?.audio?.url && (
                       <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-lg p-4 animate-fade-in">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -829,7 +1023,7 @@ export default function Upload() {
                               <Headphones className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Audio</h4>
+                              <h4 className="font-semibold text-gray-900 text-sm">Podcast Audio</h4>
                               <p className="text-xs text-gray-600">
                                 {generatedResult.formats.audio.duration || 'Ready to play'}
                               </p>
@@ -837,7 +1031,7 @@ export default function Upload() {
                           </div>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => alert('Audio player coming soon!')}
+                              onClick={() => setShowAudioModal(true)}
                               className="p-2 hover:bg-white/50 rounded-lg transition-colors"
                               aria-label="Play"
                             >
