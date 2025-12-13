@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Calendar, Eye, Trash2, Brain, FileQuestion, BookText, Image,
   Sparkles, Search, Filter, Folder, Plus, MoreVertical, X, FolderPlus,
-  ChevronLeft, Grid, List
+  ChevronLeft, Grid, List, Headphones
 } from 'lucide-react';
 import {
   useResults,
@@ -201,6 +201,7 @@ export default function Library({ user }) {
       case 'quiz': return <FileQuestion className="w-4 h-4" />;
       case 'reports': return <BookText className="w-4 h-4" />;
       case 'infographic': return <Image className="w-4 h-4" />;
+      case 'audio': return <Headphones className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
@@ -211,6 +212,7 @@ export default function Library({ user }) {
       case 'quiz': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'reports': return 'bg-green-100 text-green-700 border-green-200';
       case 'infographic': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'audio': return 'bg-pink-100 text-pink-700 border-pink-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -221,6 +223,7 @@ export default function Library({ user }) {
       case 'quiz': return 'Quiz';
       case 'reports': return 'Summary';
       case 'infographic': return 'Infographic';
+      case 'audio': return 'Audio';
       default: return formatKey;
     }
   };
