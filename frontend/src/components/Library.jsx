@@ -236,6 +236,13 @@ export default function Library({ user }) {
     return matchesSearch && matchesFormat && matchesFolder;
   });
 
+  // Sort results by most recent for "Recently Accessed"
+  const recentlyAccessedResults = [...filteredResults].sort((a, b) => {
+    const dateA = new Date(a.created_at || a.uploadedAt);
+    const dateB = new Date(b.created_at || b.uploadedAt);
+    return dateB - dateA; // Most recent first
+  }).slice(0, 6); // Show only top 6 recent items
+
   const selectedFolder = folders.find(f => f.id === selectedFolderId);
 
   // Loading state
@@ -420,19 +427,20 @@ export default function Library({ user }) {
             )}
           </AnimatePresence>
 
-          {/* Folders Section - Only show when not inside a folder */}
-          {!selectedFolderId && folders.length > 0 && (
+          {/* Folders + Files Section (Finder-style) - Only show when not inside a folder */}
+          {!selectedFolderId && (folders.length > 0 || filteredResults.length > 0) && (
             <motion.div
               className="mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Folders</h2>
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Folders & Files</h2>
               <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 <AnimatePresence>
+                  {/* Folders first */}
                   {folders.map((folder) => (
-                    <StaggerItem key={folder.id}>
+                    <StaggerItem key={`folder-${folder.id}`}>
                       <motion.div
                         layout
                         onClick={() => setSelectedFolderId(folder.id)}
@@ -453,17 +461,15 @@ export default function Library({ user }) {
                             <Folder className={`w-6 h-6 transition-colors ${dragOverFolder === folder.id ? 'text-purple-600' : 'text-blue-600'
                               }`} />
                           </div>
-                          <div className="relative">
-                            <button
-                              onClick={(e) => handleDeleteFolder(e, folder.id)}
-                              className="p-1 text-gray-400 hover:text-red-700 rounded absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                              aria-label="Delete folder"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => handleDeleteFolder(e, folder.id)}
+                            className="p-1 text-gray-400 hover:text-red-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Delete folder"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
-                        <h3 className="font-medium text-gray-900 truncate">{folder.name}</h3>
+                        <h3 className="font-medium text-gray-900 truncate text-sm">{folder.name}</h3>
                         <p className="text-xs text-gray-500 mt-1">
                           {results.filter(r => r.folder_id === folder.id).length} items
                         </p>
@@ -481,6 +487,73 @@ export default function Library({ user }) {
                       </motion.div>
                     </StaggerItem>
                   ))}
+                  {/* Files (documents not in any folder) */}
+                  {filteredResults.filter(r => !r.folder_id).map((result) => (
+                    <StaggerItem key={`file-${result.id}`}>
+                      <motion.div
+                        layout
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, result)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => handleViewResult(result)}
+                        className={`group bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-200 transition-all duration-200 cursor-pointer ${draggedItem?.id === result.id ? 'opacity-50' : ''}`}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <button
+                            onClick={(e) => handleDelete(result.id, e)}
+                            className="p-1 text-gray-400 hover:text-red-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Delete file"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <h3 className="font-medium text-gray-900 truncate text-sm">{result.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(result.created_at || result.uploadedAt)}
+                        </p>
+                      </motion.div>
+                    </StaggerItem>
+                  ))}
+                </AnimatePresence>
+              </StaggerContainer>
+            </motion.div>
+          )}
+
+          {/* Recently Accessed Section - Only show when not inside a folder */}
+          {!selectedFolderId && recentlyAccessedResults.length > 0 && (
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Recently Accessed</h2>
+              <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <AnimatePresence>
+                  {recentlyAccessedResults.map((result) => (
+                    <StaggerItem key={result.id}>
+                      <motion.div
+                        layout
+                        onClick={() => handleViewResult(result)}
+                        className="group bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-200 transition-all duration-200 cursor-pointer"
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-3">
+                          <FileText className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <h3 className="font-medium text-gray-900 truncate text-sm">{result.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(result.created_at || result.uploadedAt)}
+                        </p>
+                      </motion.div>
+                    </StaggerItem>
+                  ))}
                 </AnimatePresence>
               </StaggerContainer>
             </motion.div>
@@ -493,11 +566,10 @@ export default function Library({ user }) {
             </p>
           )}
 
-          {/* Documents Section */}
+          {/* Documents Section - Only show when inside a folder */}
+          {selectedFolderId && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              {selectedFolderId ? 'Documents' : 'All Documents'}
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Documents</h2>
 
             {filteredResults.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
@@ -695,6 +767,7 @@ export default function Library({ user }) {
               </motion.div>
             )}
           </div>
+          )}
         </div>
       </div>
 
