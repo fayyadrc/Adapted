@@ -192,6 +192,33 @@ class ApiService {
     return response.json();
   }
 
+  async generateInfographicData(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/infographic/generate-data`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to generate infographic data');
+    }
+
+    return response.json();
+  }
+
+  async getInfographicThemes() {
+    const response = await fetch(`${API_BASE_URL}/infographic/themes`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch infographic themes');
+    }
+
+    return response.json();
+  }
+
   // Health check
   async healthCheck() {
     try {

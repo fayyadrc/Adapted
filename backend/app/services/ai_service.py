@@ -261,23 +261,68 @@ def generate_quiz_from_text(text_content, num_questions=5):
 
 
 def generate_infographic_data_from_text(text_content):
-    """Generate structured data for an infographic from text content"""
+    """Generate structured data for a modern Bento Box infographic layout"""
     model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
-    Analyze the following text and extract key information suitable for a visual infographic.
+    Analyze this text for an educational infographic. Act as an instructional designer.
+    Break it into a 'Bento Box' grid layout with visual hierarchy and layout metadata.
     
     CRITICAL INSTRUCTION: 
     - You must ONLY use the information present in the "Text to analyze" section below. 
     - Do NOT use your own external knowledge or hallucinate facts not present in the text.
-    - If a specific piece of information (like stats) is not in the text, do NOT invent it. Instead, focus on the qualitative key points found in the text.
+    - If a specific piece of information (like stats) is not in the text, do NOT invent it.
     
-    Format your response as a JSON object with this exact structure:
+    Return JSON with this exact structure:
     {{
-        "title": "Catchy Title (derived from text)",
-        "subtitle": "Brief subtitle or context",
+        "theme": "modern_educational",
+        "title": "Main Topic Title",
+        "subtitle": "Brief context or tagline",
+        "progressSteps": ["Concept 1", "Concept 2", "Concept 3"],
+        "blocks": [
+            {{
+                "type": "hero",
+                "title": "Main Concept Name",
+                "content": "Short 1-2 sentence definition or key insight",
+                "icon": "Lightbulb"
+            }},
+            {{
+                "type": "split-stat",
+                "stat1": {{"label": "Category A", "value": "40%", "description": "Brief context"}},
+                "stat2": {{"label": "Category B", "value": "60%", "description": "Brief context"}}
+            }},
+            {{
+                "type": "key-point",
+                "title": "Important Point",
+                "description": "2-3 sentence explanation of this key concept",
+                "icon": "Target"
+            }},
+            {{
+                "type": "key-point",
+                "title": "Another Point",
+                "description": "2-3 sentence explanation",
+                "icon": "BookOpen"
+            }},
+            {{
+                "type": "key-point",
+                "title": "Third Point",
+                "description": "2-3 sentence explanation",
+                "icon": "Sparkles"
+            }},
+            {{
+                "type": "comparison",
+                "title": "Compare & Contrast",
+                "left": {{"label": "Option A", "points": ["Point 1", "Point 2"]}},
+                "right": {{"label": "Option B", "points": ["Point 1", "Point 2"]}}
+            }},
+            {{
+                "type": "conclusion",
+                "content": "Key takeaway or summary sentence",
+                "icon": "CheckCircle"
+            }}
+        ],
         "stats": [
-            {{"label": "Stat Label", "value": "Value"}} 
+            {{"label": "Stat Label", "value": "Value"}}
         ],
         "key_points": [
             {{"title": "Point 1", "description": "Short description"}},
@@ -287,17 +332,23 @@ def generate_infographic_data_from_text(text_content):
         "conclusion": "Short concluding sentence"
     }}
 
-    IMPORTANT:
-    - Extract at most 3 key stats IF they exist in the text. If no numbers are found, leave the stats array empty or extract short 1-2 word qualitative facts.
-    - Extract exactly 3 key points.
-    - Keep text concise, punchy, and modern.
+    IMPORTANT RULES:
+    1. Always include a "hero" block first with the main concept
+    2. Include 2-4 "key-point" blocks for important concepts
+    3. Include "split-stat" ONLY if numerical data exists in text, otherwise omit
+    4. Include "comparison" ONLY if there are contrasting concepts, otherwise omit
+    5. Always end with a "conclusion" block
+    6. Icons must be one of: Lightbulb, Target, BookOpen, Sparkles, CheckCircle, Brain, Zap, Award, TrendingUp, Users
+    7. progressSteps should show the logical flow of concepts (3-5 steps)
+    8. Also include legacy "stats" and "key_points" arrays for backward compatibility
+    9. Keep all text concise, student-friendly, and educational
 
     Text to analyze:
     ---
     {text_content}
     ---
     
-    Return ONLY the JSON object.
+    Return ONLY the JSON object, no additional text.
     """
 
     try:
@@ -306,22 +357,44 @@ def generate_infographic_data_from_text(text_content):
         cleaned_response = clean_json_response(raw_response)
         
         try:
-            return json.loads(cleaned_response)
+            data = json.loads(cleaned_response)
+            # Ensure required fields exist for backward compatibility
+            if "title" not in data:
+                data["title"] = "Infographic"
+            if "subtitle" not in data:
+                data["subtitle"] = "Generated Summary"
+            if "blocks" not in data:
+                data["blocks"] = []
+            if "stats" not in data:
+                data["stats"] = []
+            if "key_points" not in data:
+                data["key_points"] = []
+            if "progressSteps" not in data:
+                data["progressSteps"] = []
+            return data
         except json.JSONDecodeError:
             return {
+                "theme": "modern_educational",
                 "title": "Infographic Generation Failed",
                 "subtitle": "Could not parse data",
+                "blocks": [
+                    {"type": "hero", "title": "Error", "content": "Please try again", "icon": "Lightbulb"}
+                ],
                 "stats": [],
                 "key_points": [{"title": "Error", "description": "Please try again."}],
+                "progressSteps": [],
                 "conclusion": ""
             }
     except Exception as e:
         print(f"Error generating infographic data: {e}")
         return {
+            "theme": "modern_educational",
             "title": "Error",
             "subtitle": "System error",
+            "blocks": [],
             "stats": [],
             "key_points": [],
+            "progressSteps": [],
             "conclusion": str(e)
         }
 

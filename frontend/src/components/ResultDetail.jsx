@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
-import { Brain, FileQuestion, FileText, Sparkles, Maximize2, Minimize2, X, Download } from 'lucide-react';
+import { Brain, FileQuestion, FileText, Sparkles, Maximize2, Minimize2, X, Download, Image } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
 import SummaryViewer from './SummaryViewer';
+import BentoInfographic from './BentoInfographic';
 import AudioPlayer from './AudioPlayer';
 import apiService from '../services/apiService';
 
@@ -73,6 +74,7 @@ export default function ResultDetail() {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showInfographicModal, setShowInfographicModal] = useState(false);
+  const [infographicViewMode, setInfographicViewMode] = useState('interactive'); // 'interactive' or 'image'
 
   useEffect(() => {
     if (location.state) {
@@ -233,33 +235,72 @@ export default function ResultDetail() {
       {/* Infographic Modal */}
       {showInfographicModal && result?.formats?.infographic?.data && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-5xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Infographic: {resultTitle}</h2>
-                <p className="text-sm text-gray-500">AI-generated visual summary</p>
+                <p className="text-sm text-gray-500">
+                  {infographicViewMode === 'interactive' 
+                    ? 'Interactive educational infographic' 
+                    : 'Static image view'}
+                </p>
               </div>
-              <button onClick={() => setShowInfographicModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
+              <div className="flex items-center gap-3">
+                {/* View Mode Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setInfographicViewMode('interactive')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      infographicViewMode === 'interactive'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 inline-block mr-1" />
+                    Interactive
+                  </button>
+                  <button
+                    onClick={() => setInfographicViewMode('image')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      infographicViewMode === 'image'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Image className="w-4 h-4 inline-block mr-1" />
+                    Image
+                  </button>
+                </div>
+                <button onClick={() => setShowInfographicModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-gray-50">
-              <img
-                src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
-                alt="Infographic"
-                className="max-w-full h-auto shadow-lg rounded-lg"
-              />
+            <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-white">
+              {infographicViewMode === 'interactive' ? (
+                <BentoInfographic data={result.formats.infographic.data.data_used || result.formats.infographic.data} />
+              ) : (
+                <div className="p-6 flex justify-center">
+                  <img
+                    src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
+                    alt="Infographic"
+                    className="max-w-full h-auto shadow-lg rounded-lg"
+                  />
+                </div>
+              )}
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              <a
-                href={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
-                download="infographic.jpg"
-                className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Download
-              </a>
-            </div>
+            {infographicViewMode === 'image' && (
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <a
+                  href={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
+                  download="infographic.jpg"
+                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Image
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

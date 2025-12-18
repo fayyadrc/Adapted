@@ -745,3 +745,40 @@ def list_themes():
             "header_bg": theme['header_bg']
         })
     return jsonify({"themes": themes})
+
+
+@infographic_bp.route('/generate-data', methods=['POST'])
+def generate_infographic_data():
+    """
+    Generate structured infographic data for React-based rendering.
+    Returns JSON data suitable for the BentoInfographic component.
+    This is a lightweight alternative to /generate that skips image generation.
+    """
+    try:
+        text_content = ""
+        if 'file' in request.files:
+            file = request.files['file']
+            filename = file.filename.lower()
+            if filename.endswith('.pdf'):
+                text_content = extract_text_from_pdf(file.stream.read())
+            elif filename.endswith('.docx'):
+                text_content = extract_text_from_docx(file)
+            else:
+                return jsonify({"error": "Unsupported file type"}), 400
+        elif 'text' in request.form:
+            text_content = request.form['text']
+        else:
+            return jsonify({"error": "No text content provided"}), 400
+
+        # Generate structured data for React component
+        infographic_data = generate_infographic_data_from_text(text_content)
+        
+        return jsonify({
+            "message": "Success",
+            "data": infographic_data,
+            "render_type": "react_bento"
+        })
+
+    except Exception as e:
+        print(f"Error generating infographic data: {e}")
+        return jsonify({"error": str(e)}), 500
