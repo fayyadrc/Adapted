@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -39,7 +39,16 @@ export default function Library({ user }) {
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterFormat, setFilterFormat] = useState('all');
+
+  // Debounce search term to prevent excessive filtering on every keystroke
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
@@ -229,12 +238,15 @@ export default function Library({ user }) {
   };
 
   // Filter results based on search, format filter, and folder selection
-  const filteredResults = results.filter(result => {
-    const matchesSearch = result.title?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFormat = filterFormat === 'all' || (result.formats && result.formats[filterFormat]);
-    const matchesFolder = selectedFolderId ? result.folder_id === selectedFolderId : true;
-    return matchesSearch && matchesFormat && matchesFolder;
-  });
+  // Using debounced search term to prevent excessive re-renders
+  const filteredResults = useMemo(() => {
+    return results.filter(result => {
+      const matchesSearch = result.title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesFormat = filterFormat === 'all' || (result.formats && result.formats[filterFormat]);
+      const matchesFolder = selectedFolderId ? result.folder_id === selectedFolderId : true;
+      return matchesSearch && matchesFormat && matchesFolder;
+    });
+  }, [results, debouncedSearchTerm, filterFormat, selectedFolderId]);
 
   // Sort results by most recent for "Recently Accessed"
   const recentlyAccessedResults = [...filteredResults].sort((a, b) => {
