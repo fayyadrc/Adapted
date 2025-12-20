@@ -9,6 +9,7 @@ import ResultDetail from './components/ResultDetail';
 import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import HomePage from './components/HomePage';
+import Explore from './components/Explore';
 import './App.css';
 
 import { supabase } from './supabaseConfig';
@@ -113,6 +114,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/explore"
+            element={
+              <ProtectedRoute>
+                <Explore />
               </ProtectedRoute>
             }
           />

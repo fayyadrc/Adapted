@@ -46,7 +46,7 @@ export default function HomePage({ user }) {
           </Link>
 
           {/* Explore */}
-          <Link className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all duration-200 flex flex-col items-center justify-center gap-4">
+          <Link to="/explore" className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all duration-200 flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
               <Compass className="w-8 h-8 text-green-600" />
             </div>

@@ -79,8 +79,11 @@ export default function ResultDetail() {
   useEffect(() => {
     if (location.state) {
       setResult(location.state);
-    } else if (!result && id) {
-      // Fetch from API
+      return;
+    }
+    
+    // Only fetch if we don't have location.state and have an id
+    if (id) {
       setLoading(true);
       apiService.getResult(id)
         .then(data => {
@@ -93,7 +96,9 @@ export default function ResultDetail() {
           setLoading(false);
         });
     }
-  }, [location.state, id, result]);
+  // Note: Intentionally NOT including 'result' in deps to prevent re-fetch loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, id]);
 
 
   const relativeUploadTime = useMemo(

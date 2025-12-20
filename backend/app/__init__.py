@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
 from config import Config
@@ -11,12 +11,26 @@ supabase: Client = None
 #creating Flask app instance
 def create_app():
     global supabase
-    app = Flask(__name__)
+    
+    # Determine static folder path for serving React build
+    static_folder = os.environ.get('STATIC_FOLDER', '../static/frontend')
+    static_folder_abs = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', static_folder))
+    
+    app = Flask(__name__, static_folder=static_folder_abs, static_url_path='')
 
     app.config.from_object(Config)
     
-    
-    CORS(app)
+    # Production-aware CORS configuration
+    is_production = os.environ.get('FLASK_ENV', 'development') == 'production'
+    if is_production:
+        # In production, specify allowed origins
+        allowed_origins = os.environ.get('CORS_ORIGINS', '').split(',')
+        if allowed_origins and allowed_origins[0]:
+            CORS(app, origins=allowed_origins, supports_credentials=True)
+        else:
+            CORS(app)  # Fallback to allow all (configure CORS_ORIGINS in production!)
+    else:
+        CORS(app)  # Allow all origins in development
     
     
     # Initialize Supabase
@@ -51,5 +65,20 @@ def create_app():
     @app.route('/health')
     def health_check():
         return jsonify({"status": "healthy", "message": "Backend is working!"})
+    
+    # Serve React App - catch all routes that don't match API
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_react(path):
+        # If path is for API, let it 404 (shouldn't reach here due to blueprints)
+        if path.startswith('api/'):
+            return jsonify({"error": "Not found"}), 404
+        
+        # Try to serve the file directly (for static assets like JS, CSS, images)
+        if path and os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        
+        # For all other routes, serve index.html (React SPA routing)
+        return send_from_directory(app.static_folder, 'index.html')
     
     return app

@@ -112,7 +112,9 @@ export function useHealthCheck() {
   return useQuery({
     queryKey: queryKeys.health,
     queryFn: () => apiService.healthCheck(),
-    staleTime: 1000 * 30, // 30 seconds
-    refetchInterval: 1000 * 60, // Check every minute
+    staleTime: 1000 * 60 * 5, // 5 minutes - no need to check frequently
+    // Removed refetchInterval to prevent unnecessary polling
+    // Health check will only run on mount or manual refetch
+    retry: 1,
   });
 }
