@@ -11,8 +11,15 @@ RUN npm install --legacy-peer-deps
 COPY frontend/ ./
 
 # Build React app for production
-# Set the API URL to same origin since Flask serves both
-ENV VITE_API_URL=/api
+# These MUST be set as build args since Vite bakes them into the bundle
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_API_URL=/api
+
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 RUN npm run build
 
 # ============== Stage 2: Production Server ==============
