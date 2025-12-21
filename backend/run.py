@@ -1,5 +1,5 @@
 import os
-from app import create_app
+from backend.app import create_app
 
 # Create the application instance using the factory
 app = create_app()

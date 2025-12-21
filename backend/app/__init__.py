@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
-from config import Config
+from backend.config import Config
 
 
 # Global Supabase client

@@ -27,19 +27,20 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies
-COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt ./backend/
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy backend code
-COPY backend/ ./
+# Copy backend code (preserve structure for imports like 'from backend.app import')
+COPY backend/ ./backend/
 
 # Copy frontend build from stage 1 into static folder
-COPY --from=frontend-builder /app/frontend/dist ./static/frontend
+COPY --from=frontend-builder /app/frontend/dist ./backend/static/frontend
 
 # Set environment variables
 ENV FLASK_ENV=production
 ENV STATIC_FOLDER=static/frontend
 ENV PORT=8080
+ENV PYTHONPATH=/app
 
 # Expose port (Leapcell typically uses 8080)
 EXPOSE 8080
@@ -48,5 +49,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Run with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "run:app"]
+# Run with Gunicorn from project root (matches import structure)
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "--chdir", "/app", "backend.run:app"]
