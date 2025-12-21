@@ -6,7 +6,7 @@ from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
 from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text
 from ..services.audio_service import generate_podcast_audio
 from .. import supabase
-from config import Config
+from backend.config import Config
 
 upload_bp = Blueprint('upload', __name__)
 
