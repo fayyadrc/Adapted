@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -10,6 +10,7 @@ import Assessment from './components/Assessment';
 import Profile from './components/Profile';
 import HomePage from './components/HomePage';
 import Explore from './components/Explore';
+import LandingPage from './components/LandingPage';
 import './App.css';
 
 import { supabase } from './supabaseConfig';
@@ -55,15 +56,23 @@ function App() {
     return isLoggedIn ? children : <Navigate to="/login" />;
   };
 
-  return (
-    <Router>
+  // Component to conditionally render header based on route
+  const AppContent = () => {
+    const location = useLocation();
+    const isLandingPage = location.pathname === '/' && !isLoggedIn;
+    
+    return (
       <div className="min-h-screen bg-white">
-        <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} user={user} />
+        {/* Hide Header on landing page when not logged in */}
+        {!isLandingPage && (
+          <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} user={user} />
+        )}
 
         <Routes>
           {/* Public Routes */}
-          <Route path="/login" element={<Login onLogin={handleLogin} />} />
-          <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
+          <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <LandingPage />} />
+          <Route path="/login" element={isLoggedIn ? <Navigate to="/home" /> : <Login onLogin={handleLogin} />} />
+          <Route path="/signup" element={isLoggedIn ? <Navigate to="/home" /> : <Signup onLogin={handleLogin} />} />
 
           {/* Protected Routes */}
           <Route
@@ -125,9 +134,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to={isLoggedIn ? "/home" : "/login"} />} />
         </Routes>
       </div>
+    );
+  };
+
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

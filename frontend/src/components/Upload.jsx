@@ -875,32 +875,40 @@ export default function Upload({ user }) {
                       {showAudioOptions && selectedFormats.audio && (
                         <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in">
                           <p className="text-xs text-gray-600 mb-3">
-                            Enter ElevenLabs voice IDs, or leave empty to use defaults
+                            Select voices for podcast hosts
                           </p>
 
                           <label htmlFor="hostVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
-                            Host Voice ID
+                            Host Voice
                           </label>
-                          <input
-                            type="text"
+                          <select
                             id="hostVoice"
                             value={hostVoiceId}
                             onChange={(e) => setHostVoiceId(e.target.value)}
-                            placeholder="jqcCZkN6Knx8BJ5TBdYR (default)"
-                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-                          />
+                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                          >
+                            <option value="">Default Voice</option>
+                            <option value="l30f87tf05uxyknGdDw6">Alistair - British (Male)</option>
+                            <option value="QqLi9iPR1Lu3I40qrGjU">Adene - British (Female)</option>
+                            <option value="gad8DmXGyu7hwftX9JqI">Lohi - Indian (Male)</option>
+                            <option value="IKuPqyuiEnnZFcU4OVzH">Abby - American (Female)</option>
+                          </select>
 
                           <label htmlFor="guestVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
-                            Guest Voice ID
+                            Guest Voice
                           </label>
-                          <input
-                            type="text"
+                          <select
                             id="guestVoice"
                             value={guestVoiceId}
                             onChange={(e) => setGuestVoiceId(e.target.value)}
-                            placeholder="EkK5I93UQWFDigLMpZcX (default)"
-                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Default Voice</option>
+                            <option value="l30f87tf05uxyknGdDw6">Alistair - British (Male)</option>
+                            <option value="QqLi9iPR1Lu3I40qrGjU">Adene - British (Female)</option>
+                            <option value="gad8DmXGyu7hwftX9JqI">Lohi - Indian (Male)</option>
+                            <option value="IKuPqyuiEnnZFcU4OVzH">Abby - American (Female)</option>
+                          </select>
                         </div>
                       )}
                     </div>
