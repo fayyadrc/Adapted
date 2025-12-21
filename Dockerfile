@@ -6,7 +6,8 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci --only=production
+# Use npm install for better compatibility across npm versions
+RUN npm install --legacy-peer-deps
 COPY frontend/ ./
 
 # Build React app for production

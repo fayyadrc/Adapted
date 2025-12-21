@@ -7,13 +7,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
+    minify: 'esbuild',  // Use esbuild (built-in) instead of terser
+    target: 'es2020'
+  },
+  esbuild: {
+    drop: ['console', 'debugger']  // Remove console.log and debugger in production
   },
   server: {
     port: 5173,
