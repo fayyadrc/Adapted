@@ -16,6 +16,7 @@ google-api-python-client==2.185.0
 google-auth==2.41.1
 google-auth-httplib2==0.2.0
 google-genai==1.0.0
+google-generativeai==0.8.5
 google-resumable-media==2.7.2
 googleapis-common-protos==1.71.0
 grpcio==1.75.1
@@ -59,4 +60,4 @@ elevenlabs
 mutagen
 matplotlib
 gunicorn==23.0.0
-python-dotenv==1.0.1
+
