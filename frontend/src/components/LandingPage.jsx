@@ -78,10 +78,12 @@ export default function LandingPage() {
             <Sparkles className="w-4 h-4" />
             <span>Currently in Beta Phase</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Adaptive Learning,{" "}
-            <span className="text-purple-600">Reimagined</span>
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-2 leading-tight">
+            AdaptEd
           </h1>
+          <p className="text-3xl md:text-5xl font-bold text-purple-600 mb-6 leading-tight">
+            Reimagined
+          </p>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
             Learning isn't one-size-fits-all. <strong>AdaptEd</strong> responds to how you learn best—right pace, right format, right support.
           </p>
@@ -104,7 +106,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="bg-white py-16">
+      <section className="bg-purple-700 py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {features.map((feature, index) => {
@@ -112,7 +114,7 @@ export default function LandingPage() {
               return (
                 <div
                   key={index}
-                  className="bg-gray-50 p-6 rounded-2xl hover:shadow-md transition-shadow"
+                  className="bg-white p-6 rounded-2xl hover:shadow-md transition-shadow"
                 >
                   <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
                     <Icon className="w-6 h-6 text-purple-600" />

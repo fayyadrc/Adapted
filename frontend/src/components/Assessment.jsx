@@ -235,7 +235,7 @@ function getProfileColor(learningStyle) {
 // Score input component
 function ScoreInput({ label, description, value, onChange, icon: IconComponent }) {
   const numValue = parseInt(value) || 0;
-  const isValid = value === '' || (numValue >= 60 && numValue <= 140);
+  const isValid = value === '' || (numValue >= 60 && numValue <= 141);
   
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-purple-300 transition-colors">
@@ -251,13 +251,13 @@ function ScoreInput({ label, description, value, onChange, icon: IconComponent }
           <input
             type="number"
             min="60"
-            max="140"
+            max="141"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-center text-lg font-medium ${
               !isValid ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
             }`}
-            placeholder="SAS Score (60-140)"
+            placeholder="SAS Score (60-141)"
           />
           <div className="mt-2 flex justify-between text-xs text-gray-400">
             <span>Below Avg (&lt;85)</span>
@@ -313,7 +313,7 @@ export default function Assessment() {
   // Validate: all fields must have values in valid range
   const isValidScores = Object.values(scores).every(s => {
     const num = parseInt(s);
-    return s !== '' && !isNaN(num) && num >= 60 && num <= 140;
+    return s !== '' && !isNaN(num) && num >= 60 && num <= 141;
   });
   
   if (showResults && profile) {
@@ -536,7 +536,7 @@ export default function Assessment() {
             <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <p className="text-sm text-orange-800 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
-                Please enter valid SAS scores between 60 and 140 for all batteries.
+                Please enter valid SAS scores between 60 and 141 for all batteries.
               </p>
             </div>
           )}
