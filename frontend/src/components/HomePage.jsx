@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, BarChart, Compass, Plus } from "lucide-react";
+import { BookOpen, BarChart, Info, Plus } from "lucide-react";
 
 export default function HomePage({ user }) {
   const userName =
@@ -45,12 +45,12 @@ export default function HomePage({ user }) {
             <span className="font-bold text-gray-900 text-xl">My Library</span>
           </Link>
 
-          {/* Explore */}
+          {/* About */}
           <Link to="/explore" className="group bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all duration-200 flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
-              <Compass className="w-8 h-8 text-green-600" />
+              <Info className="w-8 h-8 text-green-600" />
             </div>
-            <span className="font-bold text-gray-900 text-xl">Explore</span>
+            <span className="font-bold text-gray-900 text-xl">Adapted</span>
           </Link>
 
           {/* Placeholder / Empty */}

@@ -62,6 +62,21 @@ function analyzeLearningProfile(scores) {
     biasStrength = 'Balanced';
   }
   
+  // Determine dominant CAT4 battery (highest score)
+  const batteries = [
+    { key: 'verbal', score: verbal, label: 'Verbal Reasoning' },
+    { key: 'quantitative', score: quantitative, label: 'Quantitative Reasoning' },
+    { key: 'nonVerbal', score: nonVerbal, label: 'Non-Verbal Reasoning' },
+    { key: 'spatial', score: spatial, label: 'Spatial Reasoning' }
+  ];
+  
+  const dominantBattery = batteries.reduce((max, b) => b.score > max.score ? b : max, batteries[0]);
+  
+  // Map dominant battery to learning style:
+  // Verbal Reasoning → Auditory
+  // Quantitative, Non-Verbal, Spatial → Visual
+  const learningStyle = dominantBattery.key === 'verbal' ? 'Auditory' : 'Visual';
+  
   // Analyze secondary insights
   const quantitativeStrength = quantitative >= 115 ? 'High' : quantitative >= 85 ? 'Average' : 'Low';
   const nonVerbalStrength = nonVerbal >= 115 ? 'High' : nonVerbal >= 85 ? 'Average' : 'Low';
@@ -78,6 +93,9 @@ function analyzeLearningProfile(scores) {
     primaryProfile,
     biasStrength,
     verbalSpatialDiff,
+    dominantBattery: dominantBattery.key,
+    dominantBatteryLabel: dominantBattery.label,
+    learningStyle,
     quantitativeStrength,
     nonVerbalStrength,
     verbalStrength,
@@ -202,12 +220,12 @@ function generateRecommendations(profile) {
   return recommendations;
 }
 
-// Get profile color scheme
-function getProfileColor(profile) {
-  switch (profile) {
-    case 'Verbal':
+// Get profile color scheme based on learning style
+function getProfileColor(learningStyle) {
+  switch (learningStyle) {
+    case 'Auditory':
       return { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', accent: 'bg-blue-600' };
-    case 'Spatial':
+    case 'Visual':
       return { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', accent: 'bg-purple-600' };
     default:
       return { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', accent: 'bg-green-600' };
@@ -300,7 +318,7 @@ export default function Assessment() {
   
   if (showResults && profile) {
     const recommendations = generateRecommendations(profile);
-    const colors = getProfileColor(profile.primaryProfile);
+    const colors = getProfileColor(profile.learningStyle);
     const numScores = getNumericScores();
     
     return (
@@ -319,22 +337,25 @@ export default function Assessment() {
             <p className="text-gray-600 mt-1">Based on your CAT4 assessment scores</p>
           </div>
           
-          {/* Profile Overview Card */}
+          {/* Learning Style Card */}
           <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6 mb-8`}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
+                <p className={`${colors.text} opacity-70 text-sm mb-1`}>
+                  Based on your strongest battery: {profile.dominantBatteryLabel}
+                </p>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`px-3 py-1 ${colors.accent} text-white text-sm font-medium rounded-full`}>
-                    {profile.biasStrength} {profile.primaryProfile} Profile
+                    {profile.learningStyle} Learner
                   </span>
                 </div>
                 <h2 className={`text-2xl font-bold ${colors.text}`}>
-                  {profile.primaryProfile === 'Even' 
-                    ? 'Balanced Learning Style' 
-                    : `${profile.primaryProfile}-Dominant Learner`}
+                  You learn best with {profile.learningStyle.toLowerCase()} methods
                 </h2>
-                <p className={`${colors.text} opacity-80 mt-1`}>
-                  Overall Cognitive Ability: {profile.overallAbility} (Score: {profile.overallScore})
+                <p className={`${colors.text} opacity-80 mt-2 text-sm`}>
+                  {profile.learningStyle === 'Auditory' 
+                    ? 'You process information best through listening, discussing, and verbal explanations. Try podcasts, lectures, and talking through concepts.'
+                    : 'You process information best through images, diagrams, and visual representations. Try mind maps, infographics, and color-coded notes.'}
                 </p>
               </div>
               <div className="flex gap-2">
