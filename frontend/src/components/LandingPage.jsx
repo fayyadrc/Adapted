@@ -81,8 +81,8 @@ export default function LandingPage() {
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-2 leading-tight">
             AdaptEd
           </h1>
-          <p className="text-3xl md:text-5xl font-bold text-purple-600 mb-6 leading-tight">
-            Reimagined
+          <p className="text-xl md:text-2xl font-medium text-purple-600 mb-8 tracking-wide">
+            Adaptive Learning, Reimagined
           </p>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
             Learning isn't one-size-fits-all. <strong>AdaptEd</strong> responds to how you learn best—right pace, right format, right support.
