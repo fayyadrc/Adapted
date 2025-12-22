@@ -71,11 +71,12 @@ def create_app():
     @app.route('/<path:path>')
     def serve_react(path):
         # If path is for API, let it 404 (shouldn't reach here due to blueprints)
-        if path.startswith('api/'):
+        if path.startswith('api/') or path == 'api':
             return jsonify({"error": "Not found"}), 404
         
         # Try to serve the file directly (for static assets like JS, CSS, images)
-        if path and os.path.exists(os.path.join(app.static_folder, path)):
+        full_path = os.path.join(app.static_folder, path)
+        if path and os.path.exists(full_path) and os.path.isfile(full_path):
             return send_from_directory(app.static_folder, path)
         
         # For all other routes, serve index.html (React SPA routing)
