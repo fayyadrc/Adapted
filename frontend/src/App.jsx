@@ -28,10 +28,20 @@ function App() {
       setLoading(false);
     });
 
-    // Listen for changes
+    // Listen for changes - only update if session actually changed
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session);
-      setUser(session?.user ?? null);
+      const newUserId = session?.user?.id ?? null;
+      
+      // Only trigger state updates if the user actually changed
+      setUser(prevUser => {
+        const prevUserId = prevUser?.id ?? null;
+        if (prevUserId !== newUserId) {
+          setIsLoggedIn(!!session);
+          return session?.user ?? null;
+        }
+        return prevUser;
+      });
+      
       setLoading(false);
     });
 

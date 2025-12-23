@@ -79,7 +79,9 @@ const clearLastResultId = () => {
 export default function Upload({ user }) {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(() => {
+    return localStorage.getItem('adapted:pending-title') || '';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [generatedResult, setGeneratedResult] = useState(null);
@@ -93,7 +95,10 @@ export default function Upload({ user }) {
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
   const [isAudioMinimized, setIsAudioMinimized] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(5);
+  const [numQuestions, setNumQuestions] = useState(() => {
+    const saved = localStorage.getItem('adapted:pending-numQuestions');
+    return saved ? parseInt(saved, 10) : 5;
+  });
   const fileInputRef = useRef(null);
   const location = useLocation();
   const folderId = location.state?.folderId;
@@ -102,26 +107,54 @@ export default function Upload({ user }) {
 
 
   // State for format selection
-  const [selectedFormats, setSelectedFormats] = useState({
-    visual: {
-      mindmap: false,
-      chart: false,
-      diagram: false,
-      infographic: false,
-    },
-    audio: false,
-    video: false,
-    quiz: false,
-    flashcards: false,
-    reports: false,
+  const [selectedFormats, setSelectedFormats] = useState(() => {
+    const saved = localStorage.getItem('adapted:pending-formats');
+    return saved ? JSON.parse(saved) : {
+      visual: {
+        mindmap: false,
+        chart: false,
+        diagram: false,
+        infographic: false,
+      },
+      audio: false,
+      video: false,
+      quiz: false,
+      flashcards: false,
+      reports: false,
+    };
   });
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
   const [showQuizOptions, setShowQuizOptions] = useState(false);
   const [showAudioOptions, setShowAudioOptions] = useState(false);
 
-  // Voice selection state - start empty (will use defaults from backend)
-  const [hostVoiceId, setHostVoiceId] = useState('');
-  const [guestVoiceId, setGuestVoiceId] = useState('');
+  // Voice selection state - start from localStorage or empty (will use defaults from backend)
+  const [hostVoiceId, setHostVoiceId] = useState(() => {
+    return localStorage.getItem('adapted:pending-hostVoice') || '';
+  });
+  const [guestVoiceId, setGuestVoiceId] = useState(() => {
+    return localStorage.getItem('adapted:pending-guestVoice') || '';
+  });
+
+  // Persist form state to localStorage
+  useEffect(() => {
+    localStorage.setItem('adapted:pending-title', title);
+  }, [title]);
+
+  useEffect(() => {
+    localStorage.setItem('adapted:pending-formats', JSON.stringify(selectedFormats));
+  }, [selectedFormats]);
+
+  useEffect(() => {
+    localStorage.setItem('adapted:pending-numQuestions', numQuestions.toString());
+  }, [numQuestions]);
+
+  useEffect(() => {
+    localStorage.setItem('adapted:pending-hostVoice', hostVoiceId);
+  }, [hostVoiceId]);
+
+  useEffect(() => {
+    localStorage.setItem('adapted:pending-guestVoice', guestVoiceId);
+  }, [guestVoiceId]);
 
   // Mock user assessment data
   const userAssessment = { recommended: ['visual'] };
