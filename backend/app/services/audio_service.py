@@ -123,8 +123,8 @@ You are a professional podcast scriptwriter.
 
 Convert the document below into a natural, high-quality, two-speaker podcast conversation.
 
-HOST voice_id: "{HOST_VOICE}"
-GUEST voice_id: "{GUEST_VOICE}"
+HOST voice_id: "{host_voice_id}"
+GUEST voice_id: "{guest_voice_id}"
 
 ================= HARD RULES =================
 
@@ -137,12 +137,12 @@ No text outside the JSON.
 Each element must be exactly:
 {{
   "text": "spoken podcast dialogue",
-  "voice_id": "{HOST_VOICE}" or "{GUEST_VOICE}"
+  "voice_id": "{host_voice_id}" or "{guest_voice_id}"
 }}
 
 2. VOICE RULES (CRITICAL)
-- HOST always uses "{HOST_VOICE}"
-- GUEST always uses "{GUEST_VOICE}"
+- HOST always uses "{host_voice_id}"
+- GUEST always uses "{guest_voice_id}"
 - Never swap voices
 - Never invent or introduce other voices
 - Each line belongs to exactly one speaker
