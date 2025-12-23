@@ -31,6 +31,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies
