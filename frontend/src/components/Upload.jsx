@@ -273,16 +273,11 @@ export default function Upload({ user }) {
       if (selectedFormats.visual.infographic) {
         try {
           console.log('Generating Infographic...');
-          const formData = new FormData();
-          formData.append('file', file);
-
-          const infographicResponse = await fetch("http://localhost:5000/api/infographic/generate", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (infographicResponse.ok) {
-            const infographicData = await infographicResponse.json();
+          console.log('Generating Infographic...');
+          
+          const infographicData = await api.generateInfographic(file);
+          
+          if (infographicData) {
             enrichedResult.formats.infographic = {
               type: 'Infographic',
               description: 'AI-generated visual summary',
@@ -293,8 +288,10 @@ export default function Upload({ user }) {
           } else {
             console.error('Failed to generate infographic');
           }
-        } catch (infographicErr) {
+
+          } catch (infographicErr) {
           console.error('Error generating infographic:', infographicErr);
+          // Don't fail the entire generation if just infographic fails
         }
       }
       console.log('Enriched result structure:', enrichedResult);

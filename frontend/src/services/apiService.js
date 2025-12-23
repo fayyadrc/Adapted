@@ -3,44 +3,54 @@
 // Central backend base URL
 // Keep this as the single source of truth for frontend -> backend calls
 // Uses environment variable in production, falls back to localhost for development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 class ApiService {
-  async uploadFile(file, title, formats, numQuestions = 5, folderId = null, hostVoiceId = null, guestVoiceId = null, userId = null) {
+  async uploadFile(
+    file,
+    title,
+    formats,
+    numQuestions = 5,
+    folderId = null,
+    hostVoiceId = null,
+    guestVoiceId = null,
+    userId = null
+  ) {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    formData.append('formats', JSON.stringify(formats));
-    formData.append('num_questions', numQuestions);
-    if (folderId) formData.append('folder_id', folderId);
-    if (hostVoiceId) formData.append('host_voice_id', hostVoiceId);
-    if (guestVoiceId) formData.append('guest_voice_id', guestVoiceId);
-    if (userId) formData.append('user_id', userId);
+    formData.append("file", file);
+    formData.append("title", title);
+    formData.append("formats", JSON.stringify(formats));
+    formData.append("num_questions", numQuestions);
+    if (folderId) formData.append("folder_id", folderId);
+    if (hostVoiceId) formData.append("host_voice_id", hostVoiceId);
+    if (guestVoiceId) formData.append("guest_voice_id", guestVoiceId);
+    if (userId) formData.append("user_id", userId);
 
-    console.log('=== API SERVICE DEBUG ===');
-    console.log('Sending to /api/upload:');
-    console.log('  file:', file?.name);
-    console.log('  title:', title);
-    console.log('  formats:', formats);
-    console.log('  formats JSON:', JSON.stringify(formats));
-    console.log('  num_questions:', numQuestions);
-    console.log('  host_voice_id:', hostVoiceId);
-    console.log('  guest_voice_id:', guestVoiceId);
-    console.log('  user_id:', userId);
+    console.log("=== API SERVICE DEBUG ===");
+    console.log("Sending to /api/upload:");
+    console.log("  file:", file?.name);
+    console.log("  title:", title);
+    console.log("  formats:", formats);
+    console.log("  formats JSON:", JSON.stringify(formats));
+    console.log("  num_questions:", numQuestions);
+    console.log("  host_voice_id:", hostVoiceId);
+    console.log("  guest_voice_id:", guestVoiceId);
+    console.log("  user_id:", userId);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Upload failed');
+      throw new Error(errorData.error || "Upload failed");
     }
 
     const responseData = await response.json();
-    console.log('=== API RESPONSE ===');
-    console.log('Response:', responseData);
+    console.log("=== API RESPONSE ===");
+    console.log("Response:", responseData);
     return responseData;
   }
 
@@ -48,20 +58,20 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}/results/${id}`);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch result');
+      throw new Error("Failed to fetch result");
     }
 
     return response.json();
   }
 
   async getResults(userId = null) {
-    const url = userId 
+    const url = userId
       ? `${API_BASE_URL}/results?user_id=${userId}`
       : `${API_BASE_URL}/results`;
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch results');
+      throw new Error("Failed to fetch results");
     }
 
     return response.json();
@@ -69,11 +79,11 @@ class ApiService {
 
   async deleteResult(id) {
     const response = await fetch(`${API_BASE_URL}/results/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
 
     if (!response.ok) {
-      throw new Error('Failed to delete result');
+      throw new Error("Failed to delete result");
     }
 
     return response.json();
@@ -81,15 +91,15 @@ class ApiService {
 
   async createFolder(name, userId, color) {
     const response = await fetch(`${API_BASE_URL}/folders`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ name, user_id: userId, color }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create folder');
+      throw new Error("Failed to create folder");
     }
 
     return response.json();
@@ -99,44 +109,44 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}/folders?user_id=${userId}`);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch folders');
+      throw new Error("Failed to fetch folders");
     }
 
     return response.json();
   }
 
   async deleteFolder(id) {
-    console.log('Deleting folder:', id);
+    console.log("Deleting folder:", id);
     const response = await fetch(`${API_BASE_URL}/folders/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
 
-    console.log('Delete folder response status:', response.status);
+    console.log("Delete folder response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Delete folder error:', errorData);
-      throw new Error(errorData.error || 'Failed to delete folder');
+      console.error("Delete folder error:", errorData);
+      throw new Error(errorData.error || "Failed to delete folder");
     }
 
     // Handle both JSON response and empty response
     const text = await response.text();
-    const data = text ? JSON.parse(text) : { message: 'Folder deleted' };
-    console.log('Folder deleted successfully:', data);
+    const data = text ? JSON.parse(text) : { message: "Folder deleted" };
+    console.log("Folder deleted successfully:", data);
     return data;
   }
 
   async moveLessonToFolder(lessonId, folderId) {
     const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}/move`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ folder_id: folderId }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to move lesson to folder');
+      throw new Error("Failed to move lesson to folder");
     }
 
     return response.json();
@@ -144,16 +154,16 @@ class ApiService {
 
   async generateMindMap(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate mind map');
+      throw new Error(errorData.error || "Failed to generate mind map");
     }
 
     return response.json();
@@ -161,16 +171,16 @@ class ApiService {
 
   async generateSummary(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const response = await fetch(`${API_BASE_URL}/generate-summary`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate summary');
+      throw new Error(errorData.error || "Failed to generate summary");
     }
 
     return response.json();
@@ -178,16 +188,16 @@ class ApiService {
 
   async generateQuiz(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const response = await fetch(`${API_BASE_URL}/generate-quiz`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate quiz');
+      throw new Error(errorData.error || "Failed to generate quiz");
     }
 
     return response.json();
@@ -195,16 +205,16 @@ class ApiService {
 
   async generateInfographicData(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const response = await fetch(`${API_BASE_URL}/infographic/generate-data`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate infographic data');
+      throw new Error(errorData.error || "Failed to generate infographic data");
     }
 
     return response.json();
@@ -214,7 +224,7 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}/infographic/themes`);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch infographic themes');
+      throw new Error("Failed to fetch infographic themes");
     }
 
     return response.json();
@@ -223,11 +233,44 @@ class ApiService {
   // Health check
   async healthCheck() {
     try {
-      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+      const response = await fetch(
+        `${API_BASE_URL.replace("/api", "")}/health`
+      );
       return response.ok;
     } catch {
       return false;
     }
+  }
+  async generateInfographic(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE_URL}/infographic/generate`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate infographic");
+    }
+
+    return response.json();
+  }
+  async uploadMindMapImage(blob) {
+    const formData = new FormData();
+    formData.append('file', blob, 'mindmap.png');
+
+    const response = await fetch(`${API_BASE_URL}/upload-image`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to upload image");
+    }
+
+    return response.json();
   }
 }
 

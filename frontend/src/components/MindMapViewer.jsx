@@ -21,6 +21,7 @@ import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Download, Maximize2, Minimize2, RefreshCw, Save } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import api from '../services/apiService';
 
 // --- Custom MindMapNode ---
 const MindMapNode = ({ data }) => {
@@ -254,18 +255,9 @@ const MindMapViewer = forwardRef(({ mindMapData }, ref) => {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
 
-      const formData = new FormData();
-      formData.append('file', blob, 'mindmap.png');
-
-      const uploadRes = await fetch('http://localhost:5000/api/upload-image', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) throw new Error("Failed to upload image");
-
-      const uploadData = await uploadRes.json();
+      const uploadData = await api.uploadMindMapImage(blob);
       const publicUrl = uploadData.url;
+
       console.log("Mind map image uploaded to:", publicUrl);
 
       alert("Mind Map image saved successfully!");
