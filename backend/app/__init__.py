@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request, redirect
 from flask_cors import CORS
 from supabase import create_client, Client
 from backend.config import Config
@@ -66,8 +66,45 @@ def create_app():
     def health_check():
         return jsonify({"status": "healthy", "message": "Backend is working!"})
     
-    # Serve React App - catch all routes that don't match API
-    @app.route('/', defaults={'path': ''})
+    # Explicit frontend routes - these are the React SPA routes
+    FRONTEND_ROUTES = [
+        '/',
+        '/home',
+        '/library',
+        '/upload',
+        '/login',
+        '/signup',
+        '/assessment',
+        '/profile',
+        '/explore',
+        '/results',
+        '/lessons',
+    ]
+    
+    def serve_frontend():
+        """Serve the React app's index.html"""
+        is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
+        
+        index_path = os.path.join(app.static_folder, 'index.html')
+        
+        if os.path.exists(index_path):
+            return send_from_directory(app.static_folder, 'index.html')
+        elif is_dev:
+            # In development, redirect to Vite dev server
+            return redirect('http://localhost:5173' + request.path)
+        else:
+            return jsonify({"error": "Frontend not built. Run 'npm run build' in the frontend folder."}), 500
+    
+    # Register explicit routes for all frontend pages
+    for route in FRONTEND_ROUTES:
+        app.add_url_rule(route, f'frontend_{route.replace("/", "_")}', serve_frontend)
+    
+    # Handle dynamic routes like /results/:id
+    @app.route('/results/<path:result_id>')
+    def serve_result_detail(result_id):
+        return serve_frontend()
+    
+    # Serve React App - catch all other routes
     @app.route('/<path:path>')
     def serve_react(path):
         # If path is for API, let it 404 (shouldn't reach here due to blueprints)
@@ -80,6 +117,6 @@ def create_app():
             return send_from_directory(app.static_folder, path)
         
         # For all other routes, serve index.html (React SPA routing)
-        return send_from_directory(app.static_folder, 'index.html')
+        return serve_frontend()
     
     return app
