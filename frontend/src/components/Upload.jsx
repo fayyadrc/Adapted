@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   UploadCloud,
+  ArrowLeft,
   CheckCircle,
   Loader2,
   Brain,
@@ -76,6 +77,7 @@ const clearLastResultId = () => {
 };
 
 export default function Upload({ user }) {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
@@ -687,6 +689,14 @@ export default function Upload({ user }) {
 
         {/* Upload Section */}
         <div className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back
+          </button>
+
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload & Transform</h1>

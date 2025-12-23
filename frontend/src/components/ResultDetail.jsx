@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
+
+
 import { Brain, FileQuestion, FileText, Sparkles, Maximize2, Minimize2, X, Download, Image } from 'lucide-react';
 import MindMapViewer from './MindMapViewer';
 import QuizViewer from './QuizViewer';
@@ -58,6 +60,7 @@ const formatAbsoluteDate = (iso) => {
 export default function ResultDetail() {
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const viewerRef = useRef(null);
 
   const [result, setResult] = useState(() => {
@@ -142,6 +145,33 @@ export default function ResultDetail() {
 
   const handleResetView = () => {
     viewerRef.current?.resetView?.();
+  };
+
+  // New state for generating format
+  const [generatingFormat, setGeneratingFormat] = useState(null);
+
+  const handleGenerateFormat = async (format, options = {}) => {
+    if (generatingFormat) return;
+    setGeneratingFormat(format);
+    
+    try {
+      const response = await apiService.generateAdditionalFormat(result.id, format, options);
+      
+      // Update local state with new format
+      setResult(prev => ({
+        ...prev,
+        formats: {
+          ...prev.formats,
+          [format]: response.data
+        }
+      }));
+      
+    } catch (error) {
+      console.error(`Failed to generate ${format}:`, error);
+      alert(`Failed to generate ${format}. Please try again.`);
+    } finally {
+      setGeneratingFormat(null);
+    }
   };
 
   // Derived values
@@ -324,12 +354,12 @@ export default function ResultDetail() {
               </span>
             )}
             <div className="flex gap-2">
-              <Link
-                to="/library"
+              <button
+                onClick={() => navigate(-1)}
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
               >
                 ← Back
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -377,7 +407,7 @@ export default function ResultDetail() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Mind Map Card */}
-                {result?.formats?.visual?.data && (
+                {result?.formats?.visual?.data ? (
                   <div
                     onClick={() => setShowMindMapModal(true)}
                     className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -395,10 +425,24 @@ export default function ResultDetail() {
                       <Maximize2 className="w-4 h-4 text-purple-600" />
                     </div>
                   </div>
+                ) : (
+                   <div
+                    onClick={() => handleGenerateFormat('visual')}
+                    className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
+                   >
+                     {generatingFormat === 'visual' ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
+                     ) : (
+                        <Brain className="w-6 h-6 text-gray-400 mb-2" />
+                     )}
+                     <span className="text-sm font-medium text-gray-600">
+                        {generatingFormat === 'visual' ? 'Generating...' : 'Generate Mind Map'}
+                     </span>
+                   </div>
                 )}
 
                 {/* Quiz Card */}
-                {result?.formats?.quiz?.data && (
+                {result?.formats?.quiz?.data ? (
                   <div
                     onClick={() => setShowQuizModal(true)}
                     className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -418,10 +462,24 @@ export default function ResultDetail() {
                       <Maximize2 className="w-4 h-4 text-cyan-600" />
                     </div>
                   </div>
+                ) : (
+                    <div
+                    onClick={() => handleGenerateFormat('quiz', { num_questions: 5 })}
+                    className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
+                   >
+                     {generatingFormat === 'quiz' ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600 mb-2"></div>
+                     ) : (
+                        <FileQuestion className="w-6 h-6 text-gray-400 mb-2" />
+                     )}
+                     <span className="text-sm font-medium text-gray-600">
+                        {generatingFormat === 'quiz' ? 'Generating...' : 'Generate Quiz'}
+                     </span>
+                   </div>
                 )}
 
                 {/* Summary Card */}
-                {result?.formats?.reports?.data && (
+                {result?.formats?.reports?.data ? (
                   <div
                     onClick={() => setShowSummaryModal(true)}
                     className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -441,10 +499,24 @@ export default function ResultDetail() {
                       <Maximize2 className="w-4 h-4 text-emerald-600" />
                     </div>
                   </div>
+                ) : (
+                    <div
+                    onClick={() => handleGenerateFormat('reports')}
+                    className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
+                   >
+                     {generatingFormat === 'reports' ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mb-2"></div>
+                     ) : (
+                        <FileText className="w-6 h-6 text-gray-400 mb-2" />
+                     )}
+                     <span className="text-sm font-medium text-gray-600">
+                        {generatingFormat === 'reports' ? 'Generating...' : 'Generate Summary'}
+                     </span>
+                   </div>
                 )}
 
                 {/* Infographic Card */}
-                {result?.formats?.infographic?.data && (
+                {result?.formats?.infographic?.data ? (
                   <div
                     onClick={() => setShowInfographicModal(true)}
                     className="bg-gradient-to-br from-pink-50 to-pink-100 border-2 border-pink-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -462,6 +534,20 @@ export default function ResultDetail() {
                       <Maximize2 className="w-4 h-4 text-pink-600" />
                     </div>
                   </div>
+                ) : (
+                    <div
+                    onClick={() => handleGenerateFormat('infographic')}
+                    className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
+                   >
+                     {generatingFormat === 'infographic' ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-600 mb-2"></div>
+                     ) : (
+                        <Sparkles className="w-6 h-6 text-gray-400 mb-2" />
+                     )}
+                     <span className="text-sm font-medium text-gray-600">
+                        {generatingFormat === 'infographic' ? 'Generating...' : 'Generate Infographic'}
+                     </span>
+                   </div>
                 )}
               </div>
             </div>

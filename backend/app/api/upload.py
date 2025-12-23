@@ -3,7 +3,7 @@ import uuid
 import traceback
 from flask import Blueprint, request, jsonify
 from ..utils.text_extractor import extract_text_from_pdf, extract_text_from_docx
-from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text
+from ..services.ai_service import generate_mindmap_from_text, generate_summary_from_text, generate_quiz_from_text, generate_infographic_data_from_text
 from ..services.audio_service import generate_podcast_audio
 from .. import supabase
 from backend.config import Config
@@ -228,7 +228,8 @@ def upload_and_process():
             "title": title,
             "content": results_content,
             "folder_id": folder_id,
-            "user_id": user_id
+            "user_id": user_id,
+            "text_content": text_content  # Store text for future generation
         }
         
         print(f"Inserting into Supabase with folder_id: {folder_id}...")
@@ -370,3 +371,134 @@ def move_lesson_to_folder(lesson_id):
     except Exception as e:
         print(f"Error moving lesson to folder: {e}")
         return jsonify({"error": f"Failed to move lesson: {str(e)}"}), 500
+
+@upload_bp.route('/results/<result_id>/generate', methods=['POST'])
+def generate_additional_format(result_id):
+    """
+    Generate an additional format for an existing result using stored text content.
+    """
+    print(f"=== GENERATING ADDITIONAL FORMAT FOR RESULT {result_id} ===")
+    try:
+        # 1. Fetch result to get text_content
+        response = supabase.table("results").select("*").eq("id", result_id).execute()
+        if not response.data:
+            return jsonify({"error": "Result not found"}), 404
+            
+        record = response.data[0]
+        text_content = record.get('text_content')
+        
+        if not text_content:
+            return jsonify({"error": "Original text content not found. This feature is only available for newer uploads."}), 400
+            
+        # 2. Determine requested format
+        data = request.get_json()
+        target_format = data.get('format')
+        
+        if not target_format:
+             return jsonify({"error": "No format specified"}), 400
+             
+        print(f"Target format: {target_format}")
+        
+        # 3. Generate content
+        new_format_data = {}
+        
+        if target_format == 'visual': # Mind Map
+            mindmap_json = generate_mindmap_from_text(text_content)
+            mindmap_data = json.loads(mindmap_json)
+            new_format_data = {
+                "type": "Mind Map",
+                "description": "Interactive mind map",
+                "data": mindmap_data,
+                "icon": "🗺️"
+            }
+            
+        elif target_format == 'quiz':
+            num_questions = data.get('num_questions', 5)
+            quiz_data = generate_quiz_from_text(text_content, num_questions)
+            new_format_data = {
+                "type": "Interactive Quiz",
+                "description": "Test your understanding",
+                "data": quiz_data,
+                "questionCount": len(quiz_data.get('questions', [])),
+                "icon": "❓"
+            }
+            
+        elif target_format == 'reports': # Summary
+            summary_data = generate_summary_from_text(text_content)
+            new_format_data = {
+                "type": "Summary Report",
+                "description": "Comprehensive summary",
+                "data": summary_data,
+                "icon": "📄"
+            }
+        
+        elif target_format == 'infographic':
+            infographic_data = generate_infographic_data_from_text(text_content)
+            new_format_data = {
+                 "type": "Infographic",
+                 "description": "Visual summary",
+                 "data": infographic_data,
+                 "render_type": "react_bento",
+                 "icon": "📊"
+            }
+
+        elif target_format == 'audio':
+             host_voice_id = data.get('host_voice_id') or Config.ELEVENLABS_HOST_VOICE
+             guest_voice_id = data.get('guest_voice_id') or Config.ELEVENLABS_GUEST_VOICE
+             
+             audio_bytes = generate_podcast_audio(text_content, host_voice_id, guest_voice_id)
+             
+             # Upload
+             filename = f"audio-{uuid.uuid4()}.mp3"
+             bucket_name = "generated-content"
+             supabase.storage.from_(bucket_name).upload(
+                path=filename,
+                file=audio_bytes,
+                file_options={"content-type": "audio/mpeg"}
+             )
+             public_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+             
+             # Duration (simple calc fallback)
+             duration_str = "Unknown"
+             estimated_duration = len(text_content.split()) * 0.5
+             minutes = int(estimated_duration // 60)
+             seconds = int(estimated_duration % 60)
+             duration_str = f"{minutes}:{seconds:02d}"
+             
+             new_format_data = {
+                "type": "Podcast Audio",
+                "description": "Two-speaker podcast conversation",
+                "url": public_url,
+                "duration": duration_str,
+                "host_voice_id": host_voice_id,
+                "guest_voice_id": guest_voice_id,
+                "icon": "🎙️"
+             }
+
+        else:
+            return jsonify({"error": f"Unsupported format: {target_format}"}), 400
+            
+        # 4. Update Supabase
+        current_content = record['content']
+        if 'formats' not in current_content:
+            current_content['formats'] = {}
+            
+        current_content['formats'][target_format] = new_format_data
+        
+        update_response = supabase.table("results").update({
+            "content": current_content
+        }).eq("id", result_id).execute()
+        
+        if not update_response.data:
+             return jsonify({"error": "Failed to update result"}), 500
+             
+        return jsonify({
+            "message": "Format generated successfully",
+            "format_key": target_format,
+            "data": new_format_data
+        }), 200
+
+    except Exception as e:
+        print(f"Error generating additional format: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500

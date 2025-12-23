@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Eye,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function Explore() {
+  const navigate = useNavigate();
   const varkStyles = [
     {
       letter: "V",
@@ -120,13 +121,12 @@ export default function Explore() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Back Button */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <Link
-          to="/home"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
         >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back to Dashboard</span>
-        </Link>
+          ← Back
+        </button>
       </div>
 
       {/* Hero Section */}

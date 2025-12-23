@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Calculator, 
@@ -11,7 +11,8 @@ import {
   Target, 
   BookText, 
   AlertTriangle,
-  ChevronLeft
+  ChevronLeft,
+  ArrowLeft
 } from 'lucide-react';
 
 // Icon mapping for dynamic rendering
@@ -271,6 +272,7 @@ function ScoreInput({ label, description, value, onChange, icon: IconComponent }
 }
 
 export default function Assessment() {
+  const navigate = useNavigate();
   const [scores, setScores] = useState({
     verbal: '100',
     quantitative: '100',
@@ -470,6 +472,12 @@ export default function Assessment() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-6 px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
+        >
+          ← Back
+        </button>
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">CAT4 Learning Style Assessment</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">

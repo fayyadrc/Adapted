@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Calendar, Eye, Trash2, Brain, FileQuestion, BookText, Image,
   Sparkles, Search, Filter, Folder, Plus, MoreVertical, X, FolderPlus,
-  ChevronLeft, Grid, List, Headphones
+  ChevronLeft, ArrowLeft, Grid, List, Headphones
 } from 'lucide-react';
 import {
   useResults,
@@ -317,6 +317,13 @@ export default function Library({ user }) {
     <PageTransition>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            ← Back
+          </button>
           {/* Header */}
           <motion.div
             className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6"

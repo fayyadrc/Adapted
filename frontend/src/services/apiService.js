@@ -272,6 +272,23 @@ class ApiService {
 
     return response.json();
   }
+
+  async generateAdditionalFormat(resultId, format, options = {}) {
+    const response = await fetch(`${API_BASE_URL}/results/${resultId}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ format, ...options }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate format");
+    }
+
+    return response.json();
+  }
 }
 
 export default new ApiService();
