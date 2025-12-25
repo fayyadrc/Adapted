@@ -22,16 +22,16 @@ def clean_json_response(response_text: str) -> str:
 
     text = response_text.strip()
 
-    
+    # Remove markdown code blocks
     text = re.sub(r'```\s*json', '```', text, flags=re.IGNORECASE)
     text = text.replace('```', '').strip()
 
-    
+    # Find the JSON object
     start = text.find('{')
     if start == -1:
         return text.strip()
 
-    
+    # Find matching closing brace
     depth = 0
     end = None
     for i in range(start, len(text)):
@@ -53,7 +53,6 @@ def clean_json_response(response_text: str) -> str:
 def generate_mindmap_from_text(text_content):
     model = genai.GenerativeModel('gemini-2.5-flash')
 
-    
     prompt = f"""
     Analyze the following text and generate a structured JSON object for a mind map visualization.
     The structure should be lateral (horizontal flow), with the main root having 3-5 major branches (children).
@@ -71,7 +70,7 @@ def generate_mindmap_from_text(text_content):
             "children": [
                 {{
                     "topic": "Core Concept",
-                    "summary": "o`ptional detailed summary string (e.g., key points from the text).",
+                    "summary": "optional detailed summary string (e.g., key points from the text).",
                     "definition": "optional short, single-sentence definition string for key terms.",
                     "children": [
                         {{
@@ -129,52 +128,68 @@ def generate_summary_from_text(text_content):
     Format your response as a JSON object with this exact structure:
     {{
         "title": "Brief title for the content",
-        "summary": "2-3 paragraph overview in simple language with proper markdown formatting. Use **bold** for important terms, *italics* for emphasis, and proper paragraphs.",
+        "summary": "2-3 paragraph overview in simple language. Use **bold** for important terms.",
         "key_points": [
             "Key point 1 - clear and concise",
             "Key point 2 - clear and concise", 
             "Key point 3 - clear and concise",
             "Key point 4 - clear and concise"
         ],
-        "detailed_explanation": "A longer, more detailed explanation broken into multiple paragraphs. Use markdown formatting including:\\n\\n- **Bold** for key concepts\\n- *Italics* for emphasis\\n- Proper paragraph breaks\\n- Bullet points where appropriate\\n\\nThis should be educational and easy to understand.",
-        "example": "A simple, relatable example or analogy to help understand the main concept. Use markdown formatting here too.",
+        "detailed_explanation": "A longer, more detailed explanation. Use **bold** for key concepts.",
+        "example": "A simple, relatable example or analogy to help understand the main concept.",
         "conclusion": "A brief concluding thought or key takeaway in 1-2 sentences."
     }}
 
-    Important formatting guidelines:
-    - Use **bold** (double asterisks) for important terms and concepts
-    - Use *italics* (single asterisks) for emphasis
-    - Use \\n\\n for paragraph breaks
-    - Keep the language simple and engaging for students
-    - Avoid jargon, or explain it when necessary
-    - Focus on the most important concepts
+    IMPORTANT: Return ONLY valid JSON. No markdown code blocks, no extra text.
 
     Text to summarize:
     ---
     {text_content}
     ---
-    
-    Return ONLY the JSON object, no additional text or formatting.
     """
 
+    def _attempt_generation(p):
+        """Attempt to generate and parse JSON response"""
+        resp = model.generate_content(p)
+        raw = resp.text or ''
+        cleaned = clean_json_response(raw)
+        # Fix literal newlines that break JSON parsing
+        cleaned = re.sub(r'(?<!\\)\n', ' ', cleaned)
+        cleaned = cleaned.replace('\t', ' ')
+        return json.loads(cleaned)
+
     try:
-        response = model.generate_content(prompt)
-        raw_response = response.text or ''
-        cleaned_response = clean_json_response(raw_response)
-        
+        # First attempt
         try:
-            parsed_data = json.loads(cleaned_response)
+            parsed_data = _attempt_generation(prompt)
             return parsed_data
         except json.JSONDecodeError:
-            return {
-                "error": "Failed to parse AI response",
-                "title": "Summary Error",
-                "summary": "Unable to generate summary at this time.",
-                "key_points": ["Please try again with a different document"],
-                "detailed_explanation": "There was an error processing your document. Please try again.",
-                "example": "Technical error occurred",
-                "conclusion": "Please try uploading your document again."
-            }
+            print("First attempt failed to parse JSON, retrying with stricter prompt...")
+            
+            # Retry with a stricter prompt
+            strict_prompt = prompt + """
+            
+CRITICAL: Your response MUST be valid JSON. 
+- No markdown code blocks (no ```)
+- No text before or after the JSON object
+- Use only simple quotes inside string values
+- Do not include literal newlines inside strings, use spaces instead
+- The response must start with { and end with }
+"""
+            try:
+                parsed_data = _attempt_generation(strict_prompt)
+                return parsed_data
+            except json.JSONDecodeError as e:
+                print(f"Second attempt also failed: {e}")
+                return {
+                    "error": "Failed to parse AI response",
+                    "title": "Summary Error",
+                    "summary": "Unable to generate summary at this time.",
+                    "key_points": ["Please try again with a different document"],
+                    "detailed_explanation": "There was an error processing your document. Please try again.",
+                    "example": "Technical error occurred",
+                    "conclusion": "Please try uploading your document again."
+                }
     except Exception as e:
         print(f"Error generating summary: {e}")
         return {

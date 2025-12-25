@@ -1,37 +1,54 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useParams, useLocation, Link, useNavigate } from "react-router-dom";
+import { toPng } from "html-to-image";
 
+import {
+  Brain,
+  FileQuestion,
+  FileText,
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  X,
+  Download,
+  Image,
+  Loader2,
+} from "lucide-react";
+import MindMapViewer from "./MindMapViewer";
+import QuizViewer from "./QuizViewer";
+import SummaryViewer from "./SummaryViewer";
+import BentoInfographic from "./BentoInfographic";
+import AudioPlayer from "./AudioPlayer";
+import apiService from "../services/apiService";
 
-import { Brain, FileQuestion, FileText, Sparkles, Maximize2, Minimize2, X, Download, Image } from 'lucide-react';
-import MindMapViewer from './MindMapViewer';
-import QuizViewer from './QuizViewer';
-import SummaryViewer from './SummaryViewer';
-import BentoInfographic from './BentoInfographic';
-import AudioPlayer from './AudioPlayer';
-import apiService from '../services/apiService';
-
-const LAST_RESULT_STORAGE_KEY = 'adapted:last-result';
+const LAST_RESULT_STORAGE_KEY = "adapted:last-result";
 
 const formatRelativeTime = (iso) => {
-  if (!iso) return 'just now';
+  if (!iso) return "just now";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'just now';
+  if (Number.isNaN(date.getTime())) return "just now";
 
   const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
   const divisions = [
-    { amount: 60 * 60 * 24 * 365, unit: 'year' },
-    { amount: 60 * 60 * 24 * 30, unit: 'month' },
-    { amount: 60 * 60 * 24 * 7, unit: 'week' },
-    { amount: 60 * 60 * 24, unit: 'day' },
-    { amount: 60 * 60, unit: 'hour' },
-    { amount: 60, unit: 'minute' },
-    { amount: 1, unit: 'second' },
+    { amount: 60 * 60 * 24 * 365, unit: "year" },
+    { amount: 60 * 60 * 24 * 30, unit: "month" },
+    { amount: 60 * 60 * 24 * 7, unit: "week" },
+    { amount: 60 * 60 * 24, unit: "day" },
+    { amount: 60 * 60, unit: "hour" },
+    { amount: 60, unit: "minute" },
+    { amount: 1, unit: "second" },
   ];
 
-  if (typeof Intl !== 'undefined' && typeof Intl.RelativeTimeFormat === 'function') {
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  if (
+    typeof Intl !== "undefined" &&
+    typeof Intl.RelativeTimeFormat === "function"
+  ) {
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
     for (const division of divisions) {
-      if (Math.abs(diffSeconds) >= division.amount || division.unit === 'second') {
+      if (
+        Math.abs(diffSeconds) >= division.amount ||
+        division.unit === "second"
+      ) {
         const value = Math.round(diffSeconds / division.amount);
         return rtf.format(value, division.unit);
       }
@@ -39,23 +56,23 @@ const formatRelativeTime = (iso) => {
   }
 
   const absSeconds = Math.abs(diffSeconds);
-  if (absSeconds < 60) return 'just now';
+  if (absSeconds < 60) return "just now";
   if (absSeconds < 3600) return `${Math.round(absSeconds / 60)} minute(s) ago`;
   if (absSeconds < 86400) return `${Math.round(absSeconds / 3600)} hour(s) ago`;
-  if (absSeconds < 604800) return `${Math.round(absSeconds / 86400)} day(s) ago`;
+  if (absSeconds < 604800)
+    return `${Math.round(absSeconds / 86400)} day(s) ago`;
   return date.toLocaleDateString();
 };
 
 const formatAbsoluteDate = (iso) => {
-  if (!iso) return 'Not available';
+  if (!iso) return "Not available";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'Not available';
+  if (Number.isNaN(date.getTime())) return "Not available";
   return date.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    dateStyle: "medium",
+    timeStyle: "short",
   });
 };
-
 
 export default function ResultDetail() {
   const { id } = useParams();
@@ -69,7 +86,7 @@ export default function ResultDetail() {
   });
 
   const [bookmarked, setBookmarked] = useState(false);
-  const [shareStatus, setShareStatus] = useState('');
+  const [shareStatus, setShareStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Modal states - must be declared at top level, before any conditional returns
@@ -77,40 +94,49 @@ export default function ResultDetail() {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showInfographicModal, setShowInfographicModal] = useState(false);
-  const [infographicViewMode, setInfographicViewMode] = useState('interactive'); // 'interactive' or 'image'
+  const [infographicViewMode, setInfographicViewMode] = useState("interactive"); // 'interactive' or 'image'
+  const [infographicImageData, setInfographicImageData] = useState(null);
+  const [isCapturingInfographic, setIsCapturingInfographic] = useState(false);
+  const infographicRef = useRef(null);
 
   useEffect(() => {
     if (location.state) {
       setResult(location.state);
       return;
     }
-    
+
     // Only fetch if we don't have location.state and have an id
     if (id) {
       setLoading(true);
-      apiService.getResult(id)
-        .then(data => {
+      apiService
+        .getResult(id)
+        .then((data) => {
           setResult(data);
         })
-        .catch(err => {
+        .catch((err) => {
           console.error("Failed to fetch result:", err);
         })
         .finally(() => {
           setLoading(false);
         });
     }
-  // Note: Intentionally NOT including 'result' in deps to prevent re-fetch loop
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: Intentionally NOT including 'result' in deps to prevent re-fetch loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, id]);
 
-
   const relativeUploadTime = useMemo(
-    () => formatRelativeTime(result?.created_at || result?.uploadedAt || result?.uploadDate),
+    () =>
+      formatRelativeTime(
+        result?.created_at || result?.uploadedAt || result?.uploadDate
+      ),
     [result?.created_at, result?.uploadedAt, result?.uploadDate]
   );
 
   const absoluteUploadTime = useMemo(
-    () => formatAbsoluteDate(result?.created_at || result?.uploadedAt || result?.uploadDate),
+    () =>
+      formatAbsoluteDate(
+        result?.created_at || result?.uploadedAt || result?.uploadDate
+      ),
     [result?.created_at, result?.uploadedAt, result?.uploadDate]
   );
 
@@ -127,19 +153,19 @@ export default function ResultDetail() {
   };
 
   const handleShare = async () => {
-    const shareLink = typeof window !== 'undefined' ? window.location.href : '';
+    const shareLink = typeof window !== "undefined" ? window.location.href : "";
     try {
-      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareLink);
-        setShareStatus('Link copied!');
-        setTimeout(() => setShareStatus(''), 2000);
+        setShareStatus("Link copied!");
+        setTimeout(() => setShareStatus(""), 2000);
       } else {
-        throw new Error('Clipboard API not available');
+        throw new Error("Clipboard API not available");
       }
     } catch (error) {
-      console.warn('Clipboard write failed', error);
-      setShareStatus('Unable to copy link');
-      setTimeout(() => setShareStatus(''), 2000);
+      console.warn("Clipboard write failed", error);
+      setShareStatus("Unable to copy link");
+      setTimeout(() => setShareStatus(""), 2000);
     }
   };
 
@@ -153,29 +179,108 @@ export default function ResultDetail() {
   const handleGenerateFormat = async (format, options = {}) => {
     if (generatingFormat) return;
     setGeneratingFormat(format);
-    
+
     try {
-      const response = await apiService.generateAdditionalFormat(result.id, format, options);
-      
+      const response = await apiService.generateAdditionalFormat(
+        result.id,
+        format,
+        options
+      );
+
       // Update local state with new format
-      setResult(prev => ({
+      setResult((prev) => ({
         ...prev,
         formats: {
           ...prev.formats,
-          [format]: response.data
-        }
+          [format]: response.data,
+        },
       }));
-      
     } catch (error) {
       console.error(`Failed to generate ${format}:`, error);
-      alert(`Failed to generate ${format}. Please try again.`);
+      alert(
+        `Failed to generate ${format}: ${
+          error.message || "Unknown error. Please try again."
+        }`
+      );
     } finally {
       setGeneratingFormat(null);
     }
   };
 
+  // Capture infographic as image
+  const handleCaptureInfographic = useCallback(async () => {
+    if (!infographicRef.current || isCapturingInfographic) return;
+    
+    setIsCapturingInfographic(true);
+    try {
+      // Wait a bit for the component to fully render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(infographicRef.current, {
+        quality: 1.0,
+        pixelRatio: 2, // Higher quality
+        backgroundColor: '#ffffff',
+      });
+      setInfographicImageData(dataUrl);
+    } catch (error) {
+      console.error('Failed to capture infographic:', error);
+      alert('Failed to capture infographic as image. Please try again.');
+    } finally {
+      setIsCapturingInfographic(false);
+    }
+  }, [isCapturingInfographic]);
+
+  // Handle switching to image view
+  const handleSwitchToImageView = useCallback(async () => {
+    // If we already have an image, just switch
+    if (infographicImageData) {
+      setInfographicViewMode("image");
+      return;
+    }
+    
+    // Otherwise, we need to capture first (stay in interactive mode for capture)
+    if (!infographicRef.current || isCapturingInfographic) return;
+    
+    setIsCapturingInfographic(true);
+    try {
+      // Make sure we're in interactive mode so the component is visible
+      setInfographicViewMode("interactive");
+      
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const dataUrl = await toPng(infographicRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+      setInfographicImageData(dataUrl);
+      
+      // Now switch to image view
+      setInfographicViewMode("image");
+    } catch (error) {
+      console.error('Failed to capture infographic:', error);
+      alert('Failed to capture infographic as image. Please try again.');
+    } finally {
+      setIsCapturingInfographic(false);
+    }
+  }, [infographicImageData, isCapturingInfographic]);
+
+  // Handle download
+  const handleDownloadInfographic = useCallback(() => {
+    if (!infographicImageData) {
+      alert('Image not ready. Please wait...');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.download = `${result?.title || 'infographic'}.png`;
+    link.href = infographicImageData;
+    link.click();
+  }, [infographicImageData, result?.title]);
+
   // Derived values
-  const resultTitle = result?.title || 'Generated Content';
+  const resultTitle = result?.title || "Generated Content";
   const hasFormats = result?.formats && Object.keys(result.formats).length > 0;
 
   if (loading) {
@@ -193,11 +298,16 @@ export default function ResultDetail() {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Result not found</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+            Result not found
+          </h1>
           <p className="text-gray-600 mb-6">
             This result may have been deleted or doesn't exist.
           </p>
-          <Link to="/library" className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+          <Link
+            to="/library"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
             Back to Library
           </Link>
         </div>
@@ -213,15 +323,25 @@ export default function ResultDetail() {
           <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Mind Map: {resultTitle}</h2>
-                <p className="text-sm text-gray-500">Interactive visualization of your content</p>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Mind Map: {resultTitle}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Interactive visualization of your content
+                </p>
               </div>
-              <button onClick={() => setShowMindMapModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowMindMapModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <MindMapViewer ref={viewerRef} mindMapData={result.formats.visual.data} />
+              <MindMapViewer
+                ref={viewerRef}
+                mindMapData={result.formats.visual.data}
+              />
             </div>
           </div>
         </div>
@@ -233,10 +353,15 @@ export default function ResultDetail() {
           <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Quiz: {resultTitle}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Quiz: {resultTitle}
+                </h2>
                 <p className="text-sm text-gray-500">Test your knowledge</p>
               </div>
-              <button onClick={() => setShowQuizModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowQuizModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
@@ -253,10 +378,17 @@ export default function ResultDetail() {
           <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Summary: {resultTitle}</h2>
-                <p className="text-sm text-gray-500">Comprehensive summary report</p>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Summary: {resultTitle}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Comprehensive summary report
+                </p>
               </div>
-              <button onClick={() => setShowSummaryModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
@@ -273,67 +405,103 @@ export default function ResultDetail() {
           <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-5xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Infographic: {resultTitle}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Infographic: {resultTitle}
+                </h2>
                 <p className="text-sm text-gray-500">
-                  {infographicViewMode === 'interactive' 
-                    ? 'Interactive educational infographic' 
-                    : 'Static image view'}
+                  {infographicViewMode === "interactive"
+                    ? "Interactive educational infographic"
+                    : "Static image view"}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 {/* View Mode Toggle */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button
-                    onClick={() => setInfographicViewMode('interactive')}
+                    onClick={() => setInfographicViewMode("interactive")}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      infographicViewMode === 'interactive'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      infographicViewMode === "interactive"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
                     <Sparkles className="w-4 h-4 inline-block mr-1" />
                     Interactive
                   </button>
                   <button
-                    onClick={() => setInfographicViewMode('image')}
+                    onClick={handleSwitchToImageView}
+                    disabled={isCapturingInfographic}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      infographicViewMode === 'image'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      infographicViewMode === "image"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
-                    <Image className="w-4 h-4 inline-block mr-1" />
+                    {isCapturingInfographic ? (
+                      <Loader2 className="w-4 h-4 inline-block mr-1 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4 inline-block mr-1" />
+                    )}
                     Image
                   </button>
                 </div>
-                <button onClick={() => setShowInfographicModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <button
+                  onClick={() => setShowInfographicModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-white">
-              {infographicViewMode === 'interactive' ? (
-                <BentoInfographic data={result.formats.infographic.data.data_used || result.formats.infographic.data} />
-              ) : (
-                <div className="p-6 flex justify-center">
-                  <img
-                    src={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
-                    alt="Infographic"
-                    className="max-w-full h-auto shadow-lg rounded-lg"
+              {infographicViewMode === "interactive" ? (
+                <div ref={infographicRef}>
+                  <BentoInfographic
+                    data={
+                      result.formats.infographic.data.data_used ||
+                      result.formats.infographic.data
+                    }
                   />
+                </div>
+              ) : (
+                <div className="p-6 flex flex-col items-center justify-center min-h-[400px]">
+                  {isCapturingInfographic ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="w-8 h-8 text-pink-600 animate-spin" />
+                      <p className="text-gray-600">Generating image...</p>
+                    </div>
+                  ) : infographicImageData ? (
+                    <img
+                      src={infographicImageData}
+                      alt="Infographic"
+                      className="max-w-full h-auto shadow-lg rounded-lg"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-4">
+                      <p className="text-gray-600">No image captured yet.</p>
+                      <button
+                        onClick={() => {
+                          setInfographicViewMode("interactive");
+                          setTimeout(() => handleCaptureInfographic(), 300);
+                        }}
+                        className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors"
+                      >
+                        Generate Image
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            {infographicViewMode === 'image' && (
+            {infographicViewMode === "image" && infographicImageData && (
               <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-                <a
-                  href={result.formats.infographic.data.url || result.formats.infographic.data.image_data}
-                  download="infographic.jpg"
+                <button
+                  onClick={handleDownloadInfographic}
                   className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   Download Image
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -344,8 +512,12 @@ export default function ResultDetail() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">{resultTitle}</h1>
-            <p className="text-sm text-gray-600">Uploaded {relativeUploadTime}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">
+              {resultTitle}
+            </h1>
+            <p className="text-sm text-gray-600">
+              Uploaded {relativeUploadTime}
+            </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             {shareStatus && (
@@ -366,12 +538,29 @@ export default function ResultDetail() {
 
         {!hasFormats ? (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-16 h-16 text-gray-300 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No formats generated yet</h3>
-            <p className="text-gray-600 mb-4">This result doesn't have any generated formats yet.</p>
-            <Link to="/upload" className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No formats generated yet
+            </h3>
+            <p className="text-gray-600 mb-4">
+              This result doesn't have any generated formats yet.
+            </p>
+            <Link
+              to="/upload"
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
               Upload New Content
             </Link>
           </div>
@@ -379,19 +568,33 @@ export default function ResultDetail() {
           <>
             {/* Details Section */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Details
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div className="flex flex-col">
                   <span className="text-gray-500 mb-1">Result ID</span>
-                  <span className="font-medium text-gray-900 truncate" title={result?.id || id}>{result?.id || id || '—'}</span>
+                  <span
+                    className="font-medium text-gray-900 truncate"
+                    title={result?.id || id}
+                  >
+                    {result?.id || id || "—"}
+                  </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gray-500 mb-1">Uploaded</span>
-                  <span className="font-medium text-gray-900">{absoluteUploadTime}</span>
+                  <span className="font-medium text-gray-900">
+                    {absoluteUploadTime}
+                  </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gray-500 mb-1">Document</span>
-                  <span className="font-medium text-gray-900 truncate" title={resultTitle}>{resultTitle}</span>
+                  <span
+                    className="font-medium text-gray-900 truncate"
+                    title={resultTitle}
+                  >
+                    {resultTitle}
+                  </span>
                 </div>
               </div>
             </div>
@@ -399,9 +602,12 @@ export default function ResultDetail() {
             {/* Format Cards Grid - Similar to Upload.jsx */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Generated Content</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Generated Content
+                </h3>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  {Object.keys(result.formats).length} format{Object.keys(result.formats).length !== 1 ? 's' : ''}
+                  {Object.keys(result.formats).length} format
+                  {Object.keys(result.formats).length !== 1 ? "s" : ""}
                 </span>
               </div>
 
@@ -418,27 +624,33 @@ export default function ResultDetail() {
                           <Brain className="w-5 h-5 text-purple-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
-                          <p className="text-xs text-gray-600">Interactive view</p>
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            Mind Map
+                          </h4>
+                          <p className="text-xs text-gray-600">
+                            Interactive view
+                          </p>
                         </div>
                       </div>
                       <Maximize2 className="w-4 h-4 text-purple-600" />
                     </div>
                   </div>
                 ) : (
-                   <div
-                    onClick={() => handleGenerateFormat('visual')}
+                  <div
+                    onClick={() => handleGenerateFormat("visual")}
                     className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
-                   >
-                     {generatingFormat === 'visual' ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
-                     ) : (
-                        <Brain className="w-6 h-6 text-gray-400 mb-2" />
-                     )}
-                     <span className="text-sm font-medium text-gray-600">
-                        {generatingFormat === 'visual' ? 'Generating...' : 'Generate Mind Map'}
-                     </span>
-                   </div>
+                  >
+                    {generatingFormat === "visual" ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
+                    ) : (
+                      <Brain className="w-6 h-6 text-gray-400 mb-2" />
+                    )}
+                    <span className="text-sm font-medium text-gray-600">
+                      {generatingFormat === "visual"
+                        ? "Generating..."
+                        : "Generate Mind Map"}
+                    </span>
+                  </div>
                 )}
 
                 {/* Quiz Card */}
@@ -453,9 +665,12 @@ export default function ResultDetail() {
                           <FileQuestion className="w-5 h-5 text-cyan-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            Quiz
+                          </h4>
                           <p className="text-xs text-gray-600">
-                            {result.formats.quiz.data.questions?.length || 0} questions
+                            {result.formats.quiz.data.questions?.length || 0}{" "}
+                            questions
                           </p>
                         </div>
                       </div>
@@ -463,19 +678,23 @@ export default function ResultDetail() {
                     </div>
                   </div>
                 ) : (
-                    <div
-                    onClick={() => handleGenerateFormat('quiz', { num_questions: 5 })}
+                  <div
+                    onClick={() =>
+                      handleGenerateFormat("quiz", { num_questions: 5 })
+                    }
                     className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
-                   >
-                     {generatingFormat === 'quiz' ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600 mb-2"></div>
-                     ) : (
-                        <FileQuestion className="w-6 h-6 text-gray-400 mb-2" />
-                     )}
-                     <span className="text-sm font-medium text-gray-600">
-                        {generatingFormat === 'quiz' ? 'Generating...' : 'Generate Quiz'}
-                     </span>
-                   </div>
+                  >
+                    {generatingFormat === "quiz" ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600 mb-2"></div>
+                    ) : (
+                      <FileQuestion className="w-6 h-6 text-gray-400 mb-2" />
+                    )}
+                    <span className="text-sm font-medium text-gray-600">
+                      {generatingFormat === "quiz"
+                        ? "Generating..."
+                        : "Generate Quiz"}
+                    </span>
+                  </div>
                 )}
 
                 {/* Summary Card */}
@@ -490,9 +709,12 @@ export default function ResultDetail() {
                           <FileText className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 text-sm">Summary</h4>
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            Summary
+                          </h4>
                           <p className="text-xs text-gray-600">
-                            {result.formats.reports.data.title || 'Report ready'}
+                            {result.formats.reports.data.title ||
+                              "Report ready"}
                           </p>
                         </div>
                       </div>
@@ -500,19 +722,21 @@ export default function ResultDetail() {
                     </div>
                   </div>
                 ) : (
-                    <div
-                    onClick={() => handleGenerateFormat('reports')}
+                  <div
+                    onClick={() => handleGenerateFormat("reports")}
                     className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
-                   >
-                     {generatingFormat === 'reports' ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mb-2"></div>
-                     ) : (
-                        <FileText className="w-6 h-6 text-gray-400 mb-2" />
-                     )}
-                     <span className="text-sm font-medium text-gray-600">
-                        {generatingFormat === 'reports' ? 'Generating...' : 'Generate Summary'}
-                     </span>
-                   </div>
+                  >
+                    {generatingFormat === "reports" ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mb-2"></div>
+                    ) : (
+                      <FileText className="w-6 h-6 text-gray-400 mb-2" />
+                    )}
+                    <span className="text-sm font-medium text-gray-600">
+                      {generatingFormat === "reports"
+                        ? "Generating..."
+                        : "Generate Summary"}
+                    </span>
+                  </div>
                 )}
 
                 {/* Infographic Card */}
@@ -527,27 +751,33 @@ export default function ResultDetail() {
                           <Sparkles className="w-5 h-5 text-pink-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
-                          <p className="text-xs text-gray-600">Visual summary</p>
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            Infographic
+                          </h4>
+                          <p className="text-xs text-gray-600">
+                            Visual summary
+                          </p>
                         </div>
                       </div>
                       <Maximize2 className="w-4 h-4 text-pink-600" />
                     </div>
                   </div>
                 ) : (
-                    <div
-                    onClick={() => handleGenerateFormat('infographic')}
+                  <div
+                    onClick={() => handleGenerateFormat("infographic")}
                     className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center h-full min-h-[100px]"
-                   >
-                     {generatingFormat === 'infographic' ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-600 mb-2"></div>
-                     ) : (
-                        <Sparkles className="w-6 h-6 text-gray-400 mb-2" />
-                     )}
-                     <span className="text-sm font-medium text-gray-600">
-                        {generatingFormat === 'infographic' ? 'Generating...' : 'Generate Infographic'}
-                     </span>
-                   </div>
+                  >
+                    {generatingFormat === "infographic" ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-600 mb-2"></div>
+                    ) : (
+                      <Sparkles className="w-6 h-6 text-gray-400 mb-2" />
+                    )}
+                    <span className="text-sm font-medium text-gray-600">
+                      {generatingFormat === "infographic"
+                        ? "Generating..."
+                        : "Generate Infographic"}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -555,10 +785,11 @@ export default function ResultDetail() {
               <div className="card">
                 <div className="mb-4">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    {result.formats.audio.type || 'Podcast Audio'}
+                    {result.formats.audio.type || "Podcast Audio"}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {result.formats.audio.description || 'Two-speaker podcast conversation'}
+                    {result.formats.audio.description ||
+                      "Two-speaker podcast conversation"}
                   </p>
                   {result.formats.audio.duration && (
                     <p className="text-sm text-blue-600 font-medium mt-1">
@@ -572,7 +803,7 @@ export default function ResultDetail() {
                     {result.formats.audio.error}
                   </div>
                 ) : result.formats.audio.url ? (
-                  <AudioPlayer 
+                  <AudioPlayer
                     audioUrl={result.formats.audio.url}
                     title={resultTitle}
                     duration={result.formats.audio.duration}

@@ -424,7 +424,14 @@ def generate_additional_format(result_id):
             }
             
         elif target_format == 'reports': # Summary
+            print(f"Generating summary from text_content of length: {len(text_content)}")
             summary_data = generate_summary_from_text(text_content)
+            print(f"Summary data generated: {type(summary_data)}")
+            
+            # Check if the AI returned an error
+            if isinstance(summary_data, dict) and summary_data.get('error'):
+                print(f"Summary generation had an error: {summary_data.get('error')}")
+            
             new_format_data = {
                 "type": "Summary Report",
                 "description": "Comprehensive summary",
