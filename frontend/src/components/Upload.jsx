@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   UploadCloud,
   ArrowLeft,
@@ -21,22 +21,25 @@ import {
   Maximize2,
   Minimize2,
   Download,
-  PlusCircle
-} from 'lucide-react';
-import MindMapViewer from './MindMapViewer';
-import SummaryViewer from './SummaryViewer';
-import AudioPlayer from './AudioPlayer';
-import QuizViewer from './QuizViewer';
+  PlusCircle,
+} from "lucide-react";
+import MindMapViewer from "./MindMapViewer";
+import SummaryViewer from "./SummaryViewer";
+import AudioPlayer from "./AudioPlayer";
+import QuizViewer from "./QuizViewer";
 
-import api from '../services/apiService';
-
+import api from "../services/apiService";
+import BentoInfographic from "./BentoInfographic";
+import { toPng } from "html-to-image";
 
 const saveResultToLocalStorage = (result) => {
   try {
-    const existingResults = JSON.parse(localStorage.getItem('adapted:results') || '[]');
+    const existingResults = JSON.parse(
+      localStorage.getItem("adapted:results") || "[]"
+    );
 
     // Check if a result with this ID already exists
-    const existingIndex = existingResults.findIndex(r => r.id === result.id);
+    const existingIndex = existingResults.findIndex((r) => r.id === result.id);
 
     if (existingIndex !== -1) {
       // Update existing result
@@ -46,33 +49,33 @@ const saveResultToLocalStorage = (result) => {
       existingResults.unshift(result); // Add to beginning of array
     }
 
-    localStorage.setItem('adapted:results', JSON.stringify(existingResults));
+    localStorage.setItem("adapted:results", JSON.stringify(existingResults));
 
     // Save the last result ID so we can restore it if user navigates away
     if (result.id) {
-      localStorage.setItem('adapted:last-result-id', result.id);
+      localStorage.setItem("adapted:last-result-id", result.id);
     }
 
-    console.log('✅ Result saved to localStorage');
+    console.log("✅ Result saved to localStorage");
   } catch (error) {
-    console.error('Failed to save result to localStorage:', error);
+    console.error("Failed to save result to localStorage:", error);
   }
 };
 
 const getLastResultId = () => {
   try {
-    return localStorage.getItem('adapted:last-result-id');
+    return localStorage.getItem("adapted:last-result-id");
   } catch (error) {
-    console.error('Failed to get last result ID:', error);
+    console.error("Failed to get last result ID:", error);
     return null;
   }
 };
 
 const clearLastResultId = () => {
   try {
-    localStorage.removeItem('adapted:last-result-id');
+    localStorage.removeItem("adapted:last-result-id");
   } catch (error) {
-    console.error('Failed to clear last result ID:', error);
+    console.error("Failed to clear last result ID:", error);
   }
 };
 
@@ -80,10 +83,10 @@ export default function Upload({ user }) {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState(() => {
-    return localStorage.getItem('adapted:pending-title') || '';
+    return localStorage.getItem("adapted:pending-title") || "";
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [generatedResult, setGeneratedResult] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [showMindMapModal, setShowMindMapModal] = useState(false);
@@ -95,8 +98,12 @@ export default function Upload({ user }) {
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const [isSummaryMinimized, setIsSummaryMinimized] = useState(false);
   const [isAudioMinimized, setIsAudioMinimized] = useState(false);
+  const [infographicViewMode, setInfographicViewMode] = useState("interactive"); // 'interactive' or 'image'
+  const [infographicImageData, setInfographicImageData] = useState(null);
+  const [isCapturingInfographic, setIsCapturingInfographic] = useState(false);
+  const infographicRef = useRef(null);
   const [numQuestions, setNumQuestions] = useState(() => {
-    const saved = localStorage.getItem('adapted:pending-numQuestions');
+    const saved = localStorage.getItem("adapted:pending-numQuestions");
     return saved ? parseInt(saved, 10) : 5;
   });
   const fileInputRef = useRef(null);
@@ -105,23 +112,24 @@ export default function Upload({ user }) {
 
   // Check for pending result on mount (if user navigated away during generation)
 
-
   // State for format selection
   const [selectedFormats, setSelectedFormats] = useState(() => {
-    const saved = localStorage.getItem('adapted:pending-formats');
-    return saved ? JSON.parse(saved) : {
-      visual: {
-        mindmap: false,
-        chart: false,
-        diagram: false,
-        infographic: false,
-      },
-      audio: false,
-      video: false,
-      quiz: false,
-      flashcards: false,
-      reports: false,
-    };
+    const saved = localStorage.getItem("adapted:pending-formats");
+    return saved
+      ? JSON.parse(saved)
+      : {
+          visual: {
+            mindmap: false,
+            chart: false,
+            diagram: false,
+            infographic: false,
+          },
+          audio: false,
+          video: false,
+          quiz: false,
+          flashcards: false,
+          reports: false,
+        };
   });
   const [showVisualSubOptions, setShowVisualSubOptions] = useState(false);
   const [showQuizOptions, setShowQuizOptions] = useState(false);
@@ -129,39 +137,45 @@ export default function Upload({ user }) {
 
   // Voice selection state - start from localStorage or empty (will use defaults from backend)
   const [hostVoiceId, setHostVoiceId] = useState(() => {
-    return localStorage.getItem('adapted:pending-hostVoice') || '';
+    return localStorage.getItem("adapted:pending-hostVoice") || "";
   });
   const [guestVoiceId, setGuestVoiceId] = useState(() => {
-    return localStorage.getItem('adapted:pending-guestVoice') || '';
+    return localStorage.getItem("adapted:pending-guestVoice") || "";
   });
 
   // Persist form state to localStorage
   useEffect(() => {
-    localStorage.setItem('adapted:pending-title', title);
+    localStorage.setItem("adapted:pending-title", title);
   }, [title]);
 
   useEffect(() => {
-    localStorage.setItem('adapted:pending-formats', JSON.stringify(selectedFormats));
+    localStorage.setItem(
+      "adapted:pending-formats",
+      JSON.stringify(selectedFormats)
+    );
   }, [selectedFormats]);
 
   useEffect(() => {
-    localStorage.setItem('adapted:pending-numQuestions', numQuestions.toString());
+    localStorage.setItem(
+      "adapted:pending-numQuestions",
+      numQuestions.toString()
+    );
   }, [numQuestions]);
 
   useEffect(() => {
-    localStorage.setItem('adapted:pending-hostVoice', hostVoiceId);
+    localStorage.setItem("adapted:pending-hostVoice", hostVoiceId);
   }, [hostVoiceId]);
 
   useEffect(() => {
-    localStorage.setItem('adapted:pending-guestVoice', guestVoiceId);
+    localStorage.setItem("adapted:pending-guestVoice", guestVoiceId);
   }, [guestVoiceId]);
 
   // Mock user assessment data
-  const userAssessment = { recommended: ['visual'] };
+  const userAssessment = { recommended: ["visual"] };
 
   const allowedFormats = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
 
   const handleFileChange = (e) => {
@@ -169,20 +183,20 @@ export default function Upload({ user }) {
     if (!selectedFile) return;
 
     if (!allowedFormats.includes(selectedFile.type)) {
-      setError('Only PDF and DOCX files are supported');
+      setError("Only PDF and DOCX files are supported");
       setFile(null);
       return;
     }
 
     if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB');
+      setError("File size must be less than 10MB");
       setFile(null);
       return;
     }
 
     setFile(selectedFile);
-    setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''));
-    setError('');
+    setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
+    setError("");
   };
 
   const handleDragOver = (e) => {
@@ -200,9 +214,17 @@ export default function Upload({ user }) {
   };
 
   const isAnyFormatSelected = () => {
-    if (selectedFormats.audio || selectedFormats.quiz || selectedFormats.video ||
-      selectedFormats.flashcards || selectedFormats.reports) return true;
-    return Object.values(selectedFormats.visual).some((isSelected) => isSelected);
+    if (
+      selectedFormats.audio ||
+      selectedFormats.quiz ||
+      selectedFormats.video ||
+      selectedFormats.flashcards ||
+      selectedFormats.reports
+    )
+      return true;
+    return Object.values(selectedFormats.visual).some(
+      (isSelected) => isSelected
+    );
   };
 
   // FIXED: Main submission handler with proper data structure handling
@@ -210,42 +232,49 @@ export default function Upload({ user }) {
     if (e && e.preventDefault) {
       e.preventDefault();
     }
-    setError('');
+    setError("");
     if (!file || !title || !isAnyFormatSelected()) {
-      setError('Please upload a file, set a title, and select at least one format.');
+      setError(
+        "Please upload a file, set a title, and select at least one format."
+      );
       return;
     }
 
     setLoading(true);
-    setError(''); // Clear any previous errors
+    setError(""); // Clear any previous errors
 
     const formatsToGenerate = [];
-    if (selectedFormats.audio) formatsToGenerate.push('audio');
-    if (selectedFormats.quiz) formatsToGenerate.push('quiz');
-    if (selectedFormats.video) formatsToGenerate.push('video');
-    if (selectedFormats.flashcards) formatsToGenerate.push('flashcards');
-    if (selectedFormats.reports) formatsToGenerate.push('reports');
+    if (selectedFormats.audio) formatsToGenerate.push("audio");
+    if (selectedFormats.quiz) formatsToGenerate.push("quiz");
+    if (selectedFormats.video) formatsToGenerate.push("video");
+    if (selectedFormats.flashcards) formatsToGenerate.push("flashcards");
+    if (selectedFormats.reports) formatsToGenerate.push("reports");
 
     // Send specific visual types instead of generic 'visual'
-    if (selectedFormats.visual.mindmap) formatsToGenerate.push('mindmap');
-    if (selectedFormats.visual.infographic) formatsToGenerate.push('infographic');
-    if (selectedFormats.visual.chart) formatsToGenerate.push('chart');
-    if (selectedFormats.visual.diagram) formatsToGenerate.push('diagram');
+    if (selectedFormats.visual.mindmap) formatsToGenerate.push("mindmap");
+    if (selectedFormats.visual.infographic)
+      formatsToGenerate.push("infographic");
+    if (selectedFormats.visual.chart) formatsToGenerate.push("chart");
+    if (selectedFormats.visual.diagram) formatsToGenerate.push("diagram");
 
     try {
-      console.log('=== UPLOAD DEBUG ===');
-      console.log('Selected formats:', selectedFormats);
-      console.log('Formats to generate:', formatsToGenerate);
-      console.log('Number of questions:', numQuestions);
-      console.log('User ID:', user?.id);
-      console.log('Folder ID:', folderId);
+      console.log("=== UPLOAD DEBUG ===");
+      console.log("Selected formats:", selectedFormats);
+      console.log("Formats to generate:", formatsToGenerate);
+      console.log("Number of questions:", numQuestions);
+      console.log("User ID:", user?.id);
+      console.log("Folder ID:", folderId);
 
       // Use voice IDs if provided and not empty, otherwise null (backend will use defaults)
-      const finalHostVoiceId = selectedFormats.audio && hostVoiceId.trim() ? hostVoiceId.trim() : null;
-      const finalGuestVoiceId = selectedFormats.audio && guestVoiceId.trim() ? guestVoiceId.trim() : null;
+      const finalHostVoiceId =
+        selectedFormats.audio && hostVoiceId.trim() ? hostVoiceId.trim() : null;
+      const finalGuestVoiceId =
+        selectedFormats.audio && guestVoiceId.trim()
+          ? guestVoiceId.trim()
+          : null;
 
-      console.log('Host Voice ID:', finalHostVoiceId || 'using default');
-      console.log('Guest Voice ID:', finalGuestVoiceId || 'using default');
+      console.log("Host Voice ID:", finalHostVoiceId || "using default");
+      console.log("Guest Voice ID:", finalGuestVoiceId || "using default");
 
       const data = await api.uploadFile(
         file,
@@ -257,10 +286,10 @@ export default function Upload({ user }) {
         finalGuestVoiceId,
         user?.id
       );
-      console.log('Raw backend response:', data);
-      console.log('Response keys:', Object.keys(data));
-      console.log('Has formats key?', 'formats' in data);
-      console.log('Full response:', JSON.stringify(data, null, 2));
+      console.log("Raw backend response:", data);
+      console.log("Response keys:", Object.keys(data));
+      console.log("Has formats key?", "formats" in data);
+      console.log("Full response:", JSON.stringify(data, null, 2));
 
       // FIXED: Properly structure the result based on backend response
       const enrichedResult = {
@@ -268,7 +297,7 @@ export default function Upload({ user }) {
         title: title,
         uploadedAt: data?.created_at || new Date().toISOString(),
         created_at: data?.created_at || new Date().toISOString(),
-        formats: {}
+        formats: {},
       };
 
       // Save result ID immediately so we can restore it if user navigates away
@@ -278,92 +307,101 @@ export default function Upload({ user }) {
 
       // Check if backend returned proper format structure
       if (data?.formats) {
-        console.log('Backend returned proper format structure');
+        console.log("Backend returned proper format structure");
         enrichedResult.formats = data.formats;
       } else {
-        console.log('Backend returned raw data, need to wrap it');
+        console.log("Backend returned raw data, need to wrap it");
 
         // Handle visual/mindmap format
         if (selectedFormats.visual.mindmap && data.root) {
           enrichedResult.formats.visual = {
-            type: 'Mind Map',
-            description: 'Interactive mind map showing key concepts',
-            data: data
+            type: "Mind Map",
+            description: "Interactive mind map showing key concepts",
+            data: data,
           };
         }
 
         // Handle quiz format (check for quiz_type or questions array)
         if (selectedFormats.quiz && (data.quiz_type || data.questions)) {
           enrichedResult.formats.quiz = {
-            type: 'Interactive Quiz',
-            description: 'Test your understanding with AI-generated questions',
+            type: "Interactive Quiz",
+            description: "Test your understanding with AI-generated questions",
             data: data,
             questionCount: data.questions?.length || 0,
-            icon: '❓'
+            icon: "❓",
           };
         }
       }
 
-      // Handle Infographic Generation
+      // Handle Infographic Generation - Use React-based BentoInfographic
       if (selectedFormats.visual.infographic) {
         try {
-          console.log('Generating Infographic...');
-          console.log('Generating Infographic...');
-          
-          const infographicData = await api.generateInfographic(file);
-          
-          if (infographicData) {
-            enrichedResult.formats.infographic = {
-              type: 'Infographic',
-              description: 'AI-generated visual summary',
-              data: infographicData, // Contains url and image_data
-              icon: '✨'
-            };
-            console.log('Infographic generated successfully');
-          } else {
-            console.error('Failed to generate infographic');
-          }
+          console.log("Generating Infographic (React Bento)...");
 
-          } catch (infographicErr) {
-          console.error('Error generating infographic:', infographicErr);
+          const infographicResponse = await api.generateInfographicData(file);
+
+          if (infographicResponse && infographicResponse.data) {
+            enrichedResult.formats.infographic = {
+              type: "Infographic",
+              description: "Interactive visual summary",
+              data: infographicResponse.data, // JSON data for BentoInfographic component
+              render_type: "react_bento",
+              icon: "✨",
+            };
+            console.log("Infographic data generated successfully");
+          } else {
+            console.error("Failed to generate infographic data");
+          }
+        } catch (infographicErr) {
+          console.error("Error generating infographic:", infographicErr);
           // Don't fail the entire generation if just infographic fails
         }
       }
-      console.log('Enriched result structure:', enrichedResult);
-      console.log('Has visual data?', !!enrichedResult?.formats?.visual?.data);
-      console.log('Visual data content:', enrichedResult?.formats?.visual?.data);
-      console.log('Has quiz data?', !!enrichedResult?.formats?.quiz?.data);
-      console.log('Has audio data?', !!enrichedResult?.formats?.audio);
-      console.log('Audio URL:', enrichedResult?.formats?.audio?.url);
-      console.log('Audio error:', enrichedResult?.formats?.audio?.error);
+      console.log("Enriched result structure:", enrichedResult);
+      console.log("Has visual data?", !!enrichedResult?.formats?.visual?.data);
+      console.log(
+        "Visual data content:",
+        enrichedResult?.formats?.visual?.data
+      );
+      console.log("Has quiz data?", !!enrichedResult?.formats?.quiz?.data);
+      console.log("Has audio data?", !!enrichedResult?.formats?.audio);
+      console.log("Audio URL:", enrichedResult?.formats?.audio?.url);
+      console.log("Audio error:", enrichedResult?.formats?.audio?.error);
 
       let finalResult;
       if (generatedResult && generatedResult.title === title) {
-        console.log('✅ Merging with existing formats for the same file');
+        console.log("✅ Merging with existing formats for the same file");
         finalResult = {
           ...generatedResult,
           formats: {
             ...generatedResult.formats,
-            ...enrichedResult.formats
-          }
+            ...enrichedResult.formats,
+          },
         };
         setGeneratedResult(finalResult);
       } else {
-        console.log('✅ Setting new result');
+        console.log("✅ Setting new result");
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
 
-      console.log('✅ Content generated successfully. All formats available in Generated Content section.');
-
+      console.log(
+        "✅ Content generated successfully. All formats available in Generated Content section."
+      );
     } catch (err) {
-      console.error('❌ Generation error:', err);
-      const errorMessage = err.message || 'Failed to generate. Please try again.';
+      console.error("❌ Generation error:", err);
+      const errorMessage =
+        err.message || "Failed to generate. Please try again.";
       setError(errorMessage);
 
       // Show more helpful error message for audio generation
-      if (selectedFormats.audio && (errorMessage.includes('audio') || errorMessage.includes('timeout'))) {
-        setError('Audio generation failed. This may take longer for large documents. Please try again or check your voice IDs.');
+      if (
+        selectedFormats.audio &&
+        (errorMessage.includes("audio") || errorMessage.includes("timeout"))
+      ) {
+        setError(
+          "Audio generation failed. This may take longer for large documents. Please try again or check your voice IDs."
+        );
       }
     } finally {
       setLoading(false);
@@ -372,37 +410,37 @@ export default function Upload({ user }) {
 
   // Format Selection Handlers
   const handleFormatClick = (formatKey) => {
-    if (formatKey === 'visual') {
+    if (formatKey === "visual") {
       setShowVisualSubOptions(!showVisualSubOptions);
-    } else if (formatKey === 'quiz') {
+    } else if (formatKey === "quiz") {
       const newQuizState = !selectedFormats.quiz;
-      console.log('Quiz clicked. New state:', newQuizState);
-      setSelectedFormats(prev => ({
+      console.log("Quiz clicked. New state:", newQuizState);
+      setSelectedFormats((prev) => ({
         ...prev,
-        quiz: newQuizState
+        quiz: newQuizState,
       }));
       // Show options when selecting, hide when deselecting
       setShowQuizOptions(newQuizState);
-      console.log('Show quiz options:', newQuizState);
-    } else if (formatKey === 'audio') {
+      console.log("Show quiz options:", newQuizState);
+    } else if (formatKey === "audio") {
       const newAudioState = !selectedFormats.audio;
-      setSelectedFormats(prev => ({
+      setSelectedFormats((prev) => ({
         ...prev,
-        audio: newAudioState
+        audio: newAudioState,
       }));
       setShowAudioOptions(newAudioState);
-    } else if (formatKey === 'video' || formatKey === 'flashcards') {
-      alert('Coming Soon');
-    } else if (formatKey === 'reports') {
-      setSelectedFormats(prev => ({
+    } else if (formatKey === "video" || formatKey === "flashcards") {
+      alert("Coming Soon");
+    } else if (formatKey === "reports") {
+      setSelectedFormats((prev) => ({
         ...prev,
-        [formatKey]: !prev[formatKey]
+        [formatKey]: !prev[formatKey],
       }));
     }
   };
 
   const handleSubOptionClick = (subOptionKey) => {
-    if (subOptionKey === 'mindmap') {
+    if (subOptionKey === "mindmap") {
       setSelectedFormats((prev) => ({
         ...prev,
         visual: {
@@ -410,7 +448,7 @@ export default function Upload({ user }) {
           [subOptionKey]: !prev.visual[subOptionKey],
         },
       }));
-    } else if (subOptionKey === 'infographic') {
+    } else if (subOptionKey === "infographic") {
       setSelectedFormats((prev) => ({
         ...prev,
         visual: {
@@ -419,7 +457,7 @@ export default function Upload({ user }) {
         },
       }));
     } else {
-      alert('Coming Soon');
+      alert("Coming Soon");
     }
   };
 
@@ -473,6 +511,71 @@ export default function Upload({ user }) {
 
   const handleCloseInfographic = () => {
     setShowInfographicModal(false);
+    setInfographicViewMode("interactive");
+  };
+
+  // Capture infographic as image
+  const handleCaptureInfographic = async () => {
+    if (!infographicRef.current || isCapturingInfographic) return;
+    
+    setIsCapturingInfographic(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(infographicRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+      setInfographicImageData(dataUrl);
+    } catch (error) {
+      console.error('Failed to capture infographic:', error);
+      alert('Failed to capture infographic as image. Please try again.');
+    } finally {
+      setIsCapturingInfographic(false);
+    }
+  };
+
+  // Handle switching to image view
+  const handleSwitchToImageView = async () => {
+    if (infographicImageData) {
+      setInfographicViewMode("image");
+      return;
+    }
+    
+    if (!infographicRef.current || isCapturingInfographic) return;
+    
+    setIsCapturingInfographic(true);
+    try {
+      setInfographicViewMode("interactive");
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const dataUrl = await toPng(infographicRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+      setInfographicImageData(dataUrl);
+      setInfographicViewMode("image");
+    } catch (error) {
+      console.error('Failed to capture infographic:', error);
+      alert('Failed to capture infographic as image. Please try again.');
+    } finally {
+      setIsCapturingInfographic(false);
+    }
+  };
+
+  // Handle download
+  const handleDownloadInfographic = () => {
+    if (!infographicImageData) {
+      alert('Image not ready. Please wait...');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.download = `${title || 'infographic'}.png`;
+    link.href = infographicImageData;
+    link.click();
   };
 
   const handleMinimizeAudio = () => {
@@ -492,9 +595,13 @@ export default function Upload({ user }) {
   const handleStartNew = () => {
     // Clear local state
     setFile(null);
-    setTitle('');
+    setTitle("");
     setGeneratedResult(null);
-    setError('');
+    setError("");
+    
+    // Reset infographic image state
+    setInfographicImageData(null);
+    setInfographicViewMode("interactive");
 
     // Clear selection
     setSelectedFormats({
@@ -516,209 +623,291 @@ export default function Upload({ user }) {
 
     // Reset file input if ref exists
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
-
-
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
         {/* Mind Map Modal - Full Screen */}
-        {showMindMapModal && !isMindMapMinimized && generatedResult?.formats?.visual?.data && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Mind Map: {title}</h2>
-                  <p className="text-sm text-gray-500">Interactive visualization of your content</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleMinimizeMindMap}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Minimize"
-                  >
-                    <Minimize2 className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                {generatedResult.formats.visual.error ? (
-                  <div className="p-6">
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                      {generatedResult.formats.visual.error}
-                    </div>
+        {showMindMapModal &&
+          !isMindMapMinimized &&
+          generatedResult?.formats?.visual?.data && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Mind Map: {title}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Interactive visualization of your content
+                    </p>
                   </div>
-                ) : (
-                  <MindMapViewer mindMapData={generatedResult.formats.visual.data} />
-                )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleMinimizeMindMap}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Minimize"
+                    >
+                      <Minimize2 className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  {generatedResult.formats.visual.error ? (
+                    <div className="p-6">
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        {generatedResult.formats.visual.error}
+                      </div>
+                    </div>
+                  ) : (
+                    <MindMapViewer
+                      mindMapData={generatedResult.formats.visual.data}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Quiz Modal */}
-        {showQuizModal && !isQuizMinimized && generatedResult?.formats?.quiz?.data && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Quiz: {title}</h2>
-                  <p className="text-sm text-gray-500">Test your knowledge</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleMinimizeQuiz}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Minimize"
-                  >
-                    <Minimize2 className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {generatedResult.formats.quiz.error ? (
-                  <div className="p-6">
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                      {generatedResult.formats.quiz.error}
-                    </div>
+        {showQuizModal &&
+          !isQuizMinimized &&
+          generatedResult?.formats?.quiz?.data && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Quiz: {title}
+                    </h2>
+                    <p className="text-sm text-gray-500">Test your knowledge</p>
                   </div>
-                ) : (
-                  <QuizViewer quizData={generatedResult.formats.quiz.data} />
-                )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleMinimizeQuiz}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Minimize"
+                    >
+                      <Minimize2 className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {generatedResult.formats.quiz.error ? (
+                    <div className="p-6">
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        {generatedResult.formats.quiz.error}
+                      </div>
+                    </div>
+                  ) : (
+                    <QuizViewer quizData={generatedResult.formats.quiz.data} />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Summary Modal */}
-        {showSummaryModal && !isSummaryMinimized && generatedResult?.formats?.reports?.data && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Summary: {title}</h2>
-                  <p className="text-sm text-gray-500">Comprehensive summary report</p>
+        {showSummaryModal &&
+          !isSummaryMinimized &&
+          generatedResult?.formats?.reports?.data && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Summary: {title}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Comprehensive summary report
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleMinimizeSummary}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Minimize"
+                    >
+                      <Minimize2 className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleMinimizeSummary}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Minimize"
-                  >
-                    <Minimize2 className="w-5 h-5 text-gray-600" />
-                  </button>
+                <div className="flex-1 overflow-y-auto">
+                  {generatedResult.formats.reports.error ? (
+                    <div className="p-6">
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        {generatedResult.formats.reports.error}
+                      </div>
+                    </div>
+                  ) : (
+                    <SummaryViewer
+                      summaryData={generatedResult.formats.reports.data}
+                    />
+                  )}
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                {generatedResult.formats.reports.error ? (
-                  <div className="p-6">
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                      {generatedResult.formats.reports.error}
-                    </div>
+            </div>
+          )}
+
+        {/* Infographic Modal - Interactive BentoInfographic with Image export */}
+        {showInfographicModal &&
+          generatedResult?.formats?.infographic?.data && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-5xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Infographic: {title}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {infographicViewMode === "interactive"
+                        ? "Interactive educational infographic"
+                        : "Static image view"}
+                    </p>
                   </div>
-                ) : (
-                  <SummaryViewer summaryData={generatedResult.formats.reports.data} />
+                  <div className="flex items-center gap-3">
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setInfographicViewMode("interactive")}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                          infographicViewMode === "interactive"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        <Sparkles className="w-4 h-4 inline-block mr-1" />
+                        Interactive
+                      </button>
+                      <button
+                        onClick={handleSwitchToImageView}
+                        disabled={isCapturingInfographic}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                          infographicViewMode === "image"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        {isCapturingInfographic ? (
+                          <Loader2 className="w-4 h-4 inline-block mr-1 animate-spin" />
+                        ) : (
+                          <Image className="w-4 h-4 inline-block mr-1" />
+                        )}
+                        Image
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleCloseInfographic}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Close"
+                    >
+                      <X className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-white">
+                  {infographicViewMode === "interactive" ? (
+                    <div ref={infographicRef}>
+                      <BentoInfographic
+                        data={
+                          generatedResult.formats.infographic.data.data_used ||
+                          generatedResult.formats.infographic.data
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-6 flex flex-col items-center justify-center min-h-[400px]">
+                      {isCapturingInfographic ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <Loader2 className="w-8 h-8 text-pink-600 animate-spin" />
+                          <p className="text-gray-600">Generating image...</p>
+                        </div>
+                      ) : infographicImageData ? (
+                        <img
+                          src={infographicImageData}
+                          alt="Infographic"
+                          className="max-w-full h-auto shadow-lg rounded-lg"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-4">
+                          <p className="text-gray-600">No image captured yet.</p>
+                          <button
+                            onClick={() => {
+                              setInfographicViewMode("interactive");
+                              setTimeout(() => handleCaptureInfographic(), 300);
+                            }}
+                            className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors"
+                          >
+                            Generate Image
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {infographicViewMode === "image" && infographicImageData && (
+                  <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                    <button
+                      onClick={handleDownloadInfographic}
+                      className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Image
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Infographic Modal */}
-        {showInfographicModal && generatedResult?.formats?.infographic?.data && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Infographic: {title}</h2>
-                  <p className="text-sm text-gray-500">AI-generated visual summary</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCloseInfographic}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-gray-50">
-                <img
-                  src={generatedResult.formats.infographic.data.image_data}
-                  alt="Infographic"
-                  className="max-w-full h-auto shadow-lg rounded-lg"
-                />
-              </div>
-              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-                <a
-                  href={generatedResult.formats.infographic.data.image_data}
-                  download="infographic.jpg"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </a>
-                <button
-                  onClick={() => {
-                    const data = generatedResult.formats.infographic.data;
-                    if (data.url && !data.url.startsWith('data:')) {
-                      window.open(data.url, '_blank');
-                    } else {
-                      alert('Image saved locally. Use Download to save.');
-                    }
-                  }}
-                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Open in New Tab
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Audio Modal */}
-        {showAudioModal && !isAudioMinimized && generatedResult?.formats?.audio?.url && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Podcast Audio: {title}</h2>
-                  <p className="text-sm text-gray-500">Two-speaker podcast conversation</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleMinimizeAudio}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Minimize"
-                  >
-                    <Minimize2 className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                {generatedResult.formats.audio.error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {generatedResult.formats.audio.error}
+        {showAudioModal &&
+          !isAudioMinimized &&
+          generatedResult?.formats?.audio?.url && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Podcast Audio: {title}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Two-speaker podcast conversation
+                    </p>
                   </div>
-                ) : (
-                  <AudioPlayer
-                    audioUrl={generatedResult.formats.audio.url}
-                    title={title}
-                    duration={generatedResult.formats.audio.duration}
-                    hostVoiceId={generatedResult.formats.audio.host_voice_id}
-                    guestVoiceId={generatedResult.formats.audio.guest_voice_id}
-                  />
-                )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleMinimizeAudio}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Minimize"
+                    >
+                      <Minimize2 className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  {generatedResult.formats.audio.error ? (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      {generatedResult.formats.audio.error}
+                    </div>
+                  ) : (
+                    <AudioPlayer
+                      audioUrl={generatedResult.formats.audio.url}
+                      title={title}
+                      duration={generatedResult.formats.audio.duration}
+                      hostVoiceId={generatedResult.formats.audio.host_voice_id}
+                      guestVoiceId={
+                        generatedResult.formats.audio.guest_voice_id
+                      }
+                    />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Upload Section */}
         <div className="mb-8">
@@ -732,7 +921,9 @@ export default function Upload({ user }) {
 
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload & Transform</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Upload & Transform
+              </h1>
               <p className="text-gray-600">
                 Upload your document and select the formats you want to generate
               </p>
@@ -749,15 +940,18 @@ export default function Upload({ user }) {
             {/* Column 1: File Upload Card */}
             <div className="lg:col-span-1">
               <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">1. Choose File</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  1. Choose File
+                </h3>
                 <div
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${file
-                    ? 'border-green-300 bg-green-50'
-                    : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50'
-                    }`}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                    file
+                      ? "border-green-300 bg-green-50"
+                      : "border-gray-300 hover:border-purple-300 hover:bg-purple-50"
+                  }`}
                 >
                   <input
                     ref={fileInputRef}
@@ -769,7 +963,9 @@ export default function Upload({ user }) {
                   {file ? (
                     <>
                       <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-2" />
-                      <p className="text-green-700 font-semibold text-sm">{file.name}</p>
+                      <p className="text-green-700 font-semibold text-sm">
+                        {file.name}
+                      </p>
                       <p className="text-xs text-green-600 mt-1">
                         {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
@@ -778,7 +974,7 @@ export default function Upload({ user }) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setFile(null);
-                          setTitle('');
+                          setTitle("");
                         }}
                         className="text-xs text-green-600 hover:text-green-700 mt-2 underline"
                       >
@@ -788,16 +984,25 @@ export default function Upload({ user }) {
                   ) : (
                     <>
                       <UploadCloud className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-900 font-medium text-sm">Drop file here</p>
-                      <p className="text-gray-600 text-xs mt-1">or click to browse</p>
-                      <p className="text-gray-500 text-xs mt-2">PDF, DOCX (max 10MB)</p>
+                      <p className="text-gray-900 font-medium text-sm">
+                        Drop file here
+                      </p>
+                      <p className="text-gray-600 text-xs mt-1">
+                        or click to browse
+                      </p>
+                      <p className="text-gray-500 text-xs mt-2">
+                        PDF, DOCX (max 10MB)
+                      </p>
                     </>
                   )}
                 </div>
 
                 {file && (
                   <div className="mt-4">
-                    <label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
+                    <label
+                      htmlFor="title"
+                      className="text-sm font-medium text-gray-700 mb-2 block"
+                    >
                       2. Name Your Content
                     </label>
                     <input
@@ -817,17 +1022,18 @@ export default function Upload({ user }) {
             {file && title && (
               <div className="lg:col-span-1">
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Select Formats</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    3. Select Formats
+                  </h3>
                   <div className="space-y-3">
-
                     <div>
                       <FormatSelectionCard
                         title="Visual Learning"
                         description="Mind maps & diagrams"
                         icon={Brain}
                         color="purple"
-                        onClick={() => handleFormatClick('visual')}
-                        isRecommended={isRecommended('visual')}
+                        onClick={() => handleFormatClick("visual")}
+                        isRecommended={isRecommended("visual")}
                         isSelected={showVisualSubOptions}
                       />
 
@@ -840,27 +1046,27 @@ export default function Upload({ user }) {
                           <SubOptionCard
                             title="Mind Map"
                             icon={BookText}
-                            onClick={() => handleSubOptionClick('mindmap')}
+                            onClick={() => handleSubOptionClick("mindmap")}
                             isSelected={selectedFormats.visual.mindmap}
                           />
                           <SubOptionCard
                             title="Chart"
                             icon={BarChart2}
-                            onClick={() => handleSubOptionClick('chart')}
+                            onClick={() => handleSubOptionClick("chart")}
                             isSelected={selectedFormats.visual.chart}
                             isComingSoon={true}
                           />
                           <SubOptionCard
                             title="Diagram"
                             icon={Image}
-                            onClick={() => handleSubOptionClick('diagram')}
+                            onClick={() => handleSubOptionClick("diagram")}
                             isSelected={selectedFormats.visual.diagram}
                             isComingSoon={true}
                           />
                           <SubOptionCard
                             title="Infographic"
                             icon={Sparkles}
-                            onClick={() => handleSubOptionClick('infographic')}
+                            onClick={() => handleSubOptionClick("infographic")}
                             isSelected={selectedFormats.visual.infographic}
                           />
                         </div>
@@ -872,21 +1078,26 @@ export default function Upload({ user }) {
                         description="Practice questions"
                         icon={FileQuestion}
                         color="cyan"
-                        onClick={() => handleFormatClick('quiz')}
-                        isRecommended={isRecommended('quiz')}
+                        onClick={() => handleFormatClick("quiz")}
+                        isRecommended={isRecommended("quiz")}
                         isSelected={selectedFormats.quiz}
                       />
 
                       {/* Quiz Options */}
                       {showQuizOptions && selectedFormats.quiz && (
                         <div className="mt-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg animate-fade-in">
-                          <label htmlFor="numQuestions" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                          <label
+                            htmlFor="numQuestions"
+                            className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block"
+                          >
                             Number of Questions
                           </label>
                           <select
                             id="numQuestions"
                             value={numQuestions}
-                            onChange={(e) => setNumQuestions(parseInt(e.target.value))}
+                            onChange={(e) =>
+                              setNumQuestions(parseInt(e.target.value))
+                            }
                             className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                           >
                             <option value={3}>3 questions</option>
@@ -906,8 +1117,8 @@ export default function Upload({ user }) {
                         description="Listen to your notes"
                         icon={Headphones}
                         color="blue"
-                        onClick={() => handleFormatClick('audio')}
-                        isRecommended={isRecommended('audio')}
+                        onClick={() => handleFormatClick("audio")}
+                        isRecommended={isRecommended("audio")}
                         isSelected={selectedFormats.audio}
                       />
 
@@ -918,7 +1129,10 @@ export default function Upload({ user }) {
                             Select voices for podcast hosts
                           </p>
 
-                          <label htmlFor="hostVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                          <label
+                            htmlFor="hostVoice"
+                            className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block"
+                          >
                             Host Voice
                           </label>
                           <select
@@ -928,13 +1142,24 @@ export default function Upload({ user }) {
                             className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                           >
                             <option value="">Default Voice</option>
-                            <option value="l30f87tf05uxyknGdDw6">Alistair - British (Male)</option>
-                            <option value="QqLi9iPR1Lu3I40qrGjU">Adene - British (Female)</option>
-                            <option value="gad8DmXGyu7hwftX9JqI">Lohi - Indian (Male)</option>
-                            <option value="IKuPqyuiEnnZFcU4OVzH">Abby - American (Female)</option>
+                            <option value="l30f87tf05uxyknGdDw6">
+                              Alistair - British (Male)
+                            </option>
+                            <option value="QqLi9iPR1Lu3I40qrGjU">
+                              Adene - British (Female)
+                            </option>
+                            <option value="gad8DmXGyu7hwftX9JqI">
+                              Lohi - Indian (Male)
+                            </option>
+                            <option value="IKuPqyuiEnnZFcU4OVzH">
+                              Abby - American (Female)
+                            </option>
                           </select>
 
-                          <label htmlFor="guestVoice" className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block">
+                          <label
+                            htmlFor="guestVoice"
+                            className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2 block"
+                          >
                             Guest Voice
                           </label>
                           <select
@@ -944,10 +1169,18 @@ export default function Upload({ user }) {
                             className="w-full px-3 py-2 bg-white border border-blue-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Default Voice</option>
-                            <option value="l30f87tf05uxyknGdDw6">Alistair - British (Male)</option>
-                            <option value="QqLi9iPR1Lu3I40qrGjU">Adene - British (Female)</option>
-                            <option value="gad8DmXGyu7hwftX9JqI">Lohi - Indian (Male)</option>
-                            <option value="IKuPqyuiEnnZFcU4OVzH">Abby - American (Female)</option>
+                            <option value="l30f87tf05uxyknGdDw6">
+                              Alistair - British (Male)
+                            </option>
+                            <option value="QqLi9iPR1Lu3I40qrGjU">
+                              Adene - British (Female)
+                            </option>
+                            <option value="gad8DmXGyu7hwftX9JqI">
+                              Lohi - Indian (Male)
+                            </option>
+                            <option value="IKuPqyuiEnnZFcU4OVzH">
+                              Abby - American (Female)
+                            </option>
                           </select>
                         </div>
                       )}
@@ -958,8 +1191,8 @@ export default function Upload({ user }) {
                       description="Detailed summaries"
                       icon={FileText}
                       color="emerald"
-                      onClick={() => handleFormatClick('reports')}
-                      isRecommended={isRecommended('reports')}
+                      onClick={() => handleFormatClick("reports")}
+                      isRecommended={isRecommended("reports")}
                       isSelected={selectedFormats.reports}
                     />
 
@@ -968,14 +1201,11 @@ export default function Upload({ user }) {
                       description="Study cards"
                       icon={Layers}
                       color="amber"
-                      onClick={() => handleFormatClick('flashcards')}
-                      isRecommended={isRecommended('flashcards')}
+                      onClick={() => handleFormatClick("flashcards")}
+                      isRecommended={isRecommended("flashcards")}
                       isSelected={selectedFormats.flashcards}
                       isComingSoon={true}
                     />
-
-
-
                   </div>
 
                   <button
@@ -992,12 +1222,13 @@ export default function Upload({ user }) {
                         </span>
                         {selectedFormats.audio && (
                           <span className="text-xs opacity-90 mt-1">
-                            Audio generation may take 1-3 minutes, please wait...
+                            Audio generation may take 1-3 minutes, please
+                            wait...
                           </span>
                         )}
                       </span>
                     ) : (
-                      'Generate Content'
+                      "Generate Content"
                     )}
                   </button>
                 </div>
@@ -1009,10 +1240,10 @@ export default function Upload({ user }) {
               {generatedResult && (
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-full">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Generated Content</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Generated Content
+                    </h3>
                   </div>
-
-
 
                   <div className="space-y-3">
                     {/* Minimized Mind Map Card */}
@@ -1024,7 +1255,9 @@ export default function Upload({ user }) {
                               <Brain className="w-5 h-5 text-purple-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Mind Map
+                              </h4>
                               <p className="text-xs text-gray-600">{title}</p>
                             </div>
                           </div>
@@ -1050,9 +1283,13 @@ export default function Upload({ user }) {
                               <FileQuestion className="w-5 h-5 text-cyan-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Quiz
+                              </h4>
                               <p className="text-xs text-gray-600">
-                                {generatedResult.formats.quiz.data.questions?.length || 0} questions
+                                {generatedResult.formats.quiz.data.questions
+                                  ?.length || 0}{" "}
+                                questions
                               </p>
                             </div>
                           </div>
@@ -1071,18 +1308,39 @@ export default function Upload({ user }) {
 
                     {/* Audio Card */}
                     {generatedResult?.formats?.audio && (
-                      <div className={`bg-gradient-to-br ${generatedResult.formats.audio.error ? 'from-red-50 to-red-100 border-red-200' : 'from-blue-50 to-blue-100 border-blue-200'} border-2 rounded-lg p-4 animate-fade-in`}>
+                      <div
+                        className={`bg-gradient-to-br ${
+                          generatedResult.formats.audio.error
+                            ? "from-red-50 to-red-100 border-red-200"
+                            : "from-blue-50 to-blue-100 border-blue-200"
+                        } border-2 rounded-lg p-4 animate-fade-in`}
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 ${generatedResult.formats.audio.error ? 'bg-red-100' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
-                              <Headphones className={`w-5 h-5 ${generatedResult.formats.audio.error ? 'text-red-600' : 'text-blue-600'}`} />
+                            <div
+                              className={`w-10 h-10 ${
+                                generatedResult.formats.audio.error
+                                  ? "bg-red-100"
+                                  : "bg-blue-100"
+                              } rounded-lg flex items-center justify-center`}
+                            >
+                              <Headphones
+                                className={`w-5 h-5 ${
+                                  generatedResult.formats.audio.error
+                                    ? "text-red-600"
+                                    : "text-blue-600"
+                                }`}
+                              />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Podcast Audio</h4>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Podcast Audio
+                              </h4>
                               <p className="text-xs text-gray-600">
                                 {generatedResult.formats.audio.error
-                                  ? 'Error generating audio'
-                                  : (generatedResult.formats.audio.duration || 'Ready to play')}
+                                  ? "Error generating audio"
+                                  : generatedResult.formats.audio.duration ||
+                                    "Ready to play"}
                               </p>
                             </div>
                           </div>
@@ -1099,7 +1357,9 @@ export default function Upload({ user }) {
                           </div>
                         </div>
                         {generatedResult.formats.audio.error && (
-                          <p className="mt-2 text-xs text-red-600">{generatedResult.formats.audio.error}</p>
+                          <p className="mt-2 text-xs text-red-600">
+                            {generatedResult.formats.audio.error}
+                          </p>
                         )}
                       </div>
                     )}
@@ -1113,9 +1373,12 @@ export default function Upload({ user }) {
                               <FileText className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900 text-sm">Summary</h4>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Summary
+                              </h4>
                               <p className="text-xs text-gray-600">
-                                {generatedResult.formats.reports.data.title || 'Report available'}
+                                {generatedResult.formats.reports.data.title ||
+                                  "Report available"}
                               </p>
                             </div>
                           </div>
@@ -1142,21 +1405,31 @@ export default function Upload({ user }) {
                                 <Sparkles className="w-5 h-5 text-pink-600" />
                               </div>
                               <div>
-                                <h4 className="font-semibold text-gray-900 text-sm">Infographic</h4>
-                                <p className="text-xs text-gray-600">Generated from content</p>
+                                <h4 className="font-semibold text-gray-900 text-sm">
+                                  Infographic
+                                </h4>
+                                <p className="text-xs text-gray-600">
+                                  Interactive visual summary
+                                </p>
                               </div>
                             </div>
+                            <Maximize2 className="w-4 h-4 text-pink-600" />
                           </div>
 
-                          {/* Preview Image */}
-                          <div className="mt-2 group relative cursor-pointer" onClick={handleMaximizeInfographic}>
-                            <img
-                              src={generatedResult.formats.infographic.data.image_data}
-                              alt="Infographic Preview"
-                              className="w-full h-32 object-cover rounded-md border border-pink-200 hover:opacity-90 transition-opacity"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-md">
-                              <Maximize2 className="w-8 h-8 text-white drop-shadow-md" />
+                          {/* Preview placeholder with title */}
+                          <div
+                            className="mt-2 group relative cursor-pointer bg-gradient-to-br from-pink-100 to-pink-200 rounded-md h-32 flex items-center justify-center border border-pink-200 hover:border-pink-300 transition-all"
+                            onClick={handleMaximizeInfographic}
+                          >
+                            <div className="text-center p-4">
+                              <Sparkles className="w-8 h-8 text-pink-400 mx-auto mb-2" />
+                              <p className="text-pink-700 font-medium text-sm">
+                                {generatedResult.formats.infographic.data.title || "Infographic Ready"}
+                              </p>
+                              <p className="text-pink-500 text-xs mt-1">Click to view</p>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 rounded-md">
+                              <Maximize2 className="w-8 h-8 text-pink-600 drop-shadow-md" />
                             </div>
                           </div>
 
@@ -1165,18 +1438,8 @@ export default function Upload({ user }) {
                               onClick={handleMaximizeInfographic}
                               className="flex-1 px-3 py-2 bg-white border border-pink-200 text-pink-700 hover:bg-pink-50 text-xs font-medium rounded transition-colors"
                             >
-                              View Full Size
+                              View Interactive
                             </button>
-
-                            <a
-                              href={generatedResult.formats.infographic.data.image_data}
-                              download="infographic.jpg"
-                              onClick={(e) => e.stopPropagation()}
-                              className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center"
-                              title="Download Infographic"
-                            >
-                              <Download className="w-4 h-4" />
-                            </a>
                           </div>
                         </div>
                       </div>
@@ -1191,7 +1454,9 @@ export default function Upload({ user }) {
         {/* Generated Content Section */}
         {generatedResult && false && (
           <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Generated Content</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Generated Content
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Minimized Mind Map Card */}
               {generatedResult?.formats?.visual?.data && (
@@ -1202,7 +1467,9 @@ export default function Upload({ user }) {
                         <Brain className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">Mind Map</h4>
+                        <h4 className="font-semibold text-gray-900 text-sm">
+                          Mind Map
+                        </h4>
                         <p className="text-xs text-gray-600">{title}</p>
                       </div>
                     </div>
@@ -1231,8 +1498,13 @@ export default function Upload({ user }) {
                         <FileQuestion className="w-5 h-5 text-cyan-600" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">Quiz</h4>
-                        <p className="text-xs text-gray-600">{generatedResult.formats.quiz.data.questions.length} questions</p>
+                        <h4 className="font-semibold text-gray-900 text-sm">
+                          Quiz
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          {generatedResult.formats.quiz.data.questions.length}{" "}
+                          questions
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1250,39 +1522,48 @@ export default function Upload({ user }) {
 }
 
 // Reusable Card Components
-const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, isSelected, isRecommended, isComingSoon }) => {
+const FormatSelectionCard = ({
+  title,
+  description,
+  icon: Icon,
+  color,
+  onClick,
+  isSelected,
+  isRecommended,
+  isComingSoon,
+}) => {
   // Map colors to proper Tailwind classes
   const colorClasses = {
     purple: {
-      border: 'border-purple-400',
-      bg: 'bg-purple-50',
-      iconBg: 'bg-purple-100',
-      iconText: 'text-purple-600'
+      border: "border-purple-400",
+      bg: "bg-purple-50",
+      iconBg: "bg-purple-100",
+      iconText: "text-purple-600",
     },
     cyan: {
-      border: 'border-cyan-400',
-      bg: 'bg-cyan-50',
-      iconBg: 'bg-cyan-100',
-      iconText: 'text-cyan-600'
+      border: "border-cyan-400",
+      bg: "bg-cyan-50",
+      iconBg: "bg-cyan-100",
+      iconText: "text-cyan-600",
     },
     blue: {
-      border: 'border-blue-400',
-      bg: 'bg-blue-50',
-      iconBg: 'bg-blue-100',
-      iconText: 'text-blue-600'
+      border: "border-blue-400",
+      bg: "bg-blue-50",
+      iconBg: "bg-blue-100",
+      iconText: "text-blue-600",
     },
     emerald: {
-      border: 'border-emerald-400',
-      bg: 'bg-emerald-50',
-      iconBg: 'bg-emerald-100',
-      iconText: 'text-emerald-600'
+      border: "border-emerald-400",
+      bg: "bg-emerald-50",
+      iconBg: "bg-emerald-100",
+      iconText: "text-emerald-600",
     },
     amber: {
-      border: 'border-amber-400',
-      bg: 'bg-amber-50',
-      iconBg: 'bg-amber-100',
-      iconText: 'text-amber-600'
-    }
+      border: "border-amber-400",
+      bg: "bg-amber-50",
+      iconBg: "bg-amber-100",
+      iconText: "text-amber-600",
+    },
   };
 
   const colors = colorClasses[color] || colorClasses.purple;
@@ -1290,10 +1571,11 @@ const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, i
   return (
     <button
       onClick={onClick}
-      className={`w-full relative p-4 rounded-lg border text-left transition-all ${isSelected
-        ? `${colors.border} ${colors.bg}`
-        : 'border-gray-200 hover:border-gray-300 bg-white'
-        } ${isComingSoon ? 'opacity-70' : ''}`}
+      className={`w-full relative p-4 rounded-lg border text-left transition-all ${
+        isSelected
+          ? `${colors.border} ${colors.bg}`
+          : "border-gray-200 hover:border-gray-300 bg-white"
+      } ${isComingSoon ? "opacity-70" : ""}`}
     >
       {isRecommended && (
         <span className="absolute -top-2 -right-2 flex items-center px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold">
@@ -1308,26 +1590,39 @@ const FormatSelectionCard = ({ title, description, icon: Icon, color, onClick, i
       )}
 
       <div className="flex items-center">
-        <div className={`w-10 h-10 rounded-lg ${colors.iconBg} flex items-center justify-center mr-3`}>
+        <div
+          className={`w-10 h-10 rounded-lg ${colors.iconBg} flex items-center justify-center mr-3`}
+        >
           <Icon className={`w-5 h-5 ${colors.iconText}`} />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
           <p className="text-xs text-gray-600">{description}</p>
         </div>
-        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+        <ChevronRight
+          className={`w-4 h-4 text-gray-400 transition-transform ${
+            isSelected ? "rotate-90" : ""
+          }`}
+        />
       </div>
     </button>
   );
 };
 
-const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon }) => (
+const SubOptionCard = ({
+  title,
+  icon: Icon,
+  onClick,
+  isSelected,
+  isComingSoon,
+}) => (
   <button
     onClick={onClick}
-    className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center ${isSelected
-      ? 'bg-purple-50 border border-purple-200'
-      : 'hover:bg-gray-50 border border-transparent'
-      } ${isComingSoon ? 'opacity-60' : ''}`}
+    className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center ${
+      isSelected
+        ? "bg-purple-50 border border-purple-200"
+        : "hover:bg-gray-50 border border-transparent"
+    } ${isComingSoon ? "opacity-60" : ""}`}
   >
     <Icon className="w-4 h-4 text-purple-600 mr-3" />
     <span className="flex-1 font-medium text-gray-800 text-sm">{title}</span>
@@ -1337,10 +1632,11 @@ const SubOptionCard = ({ title, icon: Icon, onClick, isSelected, isComingSoon })
       </span>
     )}
     {!isComingSoon && (
-      <div className={`w-4 h-4 rounded flex items-center justify-center border ${isSelected
-        ? 'bg-purple-600 border-purple-600'
-        : 'border-gray-300'
-        }`}>
+      <div
+        className={`w-4 h-4 rounded flex items-center justify-center border ${
+          isSelected ? "bg-purple-600 border-purple-600" : "border-gray-300"
+        }`}
+      >
         {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
       </div>
     )}
