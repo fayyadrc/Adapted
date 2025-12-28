@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   UploadCloud,
   ArrowLeft,
@@ -81,6 +82,7 @@ const clearLastResultId = () => {
 
 export default function Upload({ user }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState(() => {
     return localStorage.getItem("adapted:pending-title") || "";
@@ -334,21 +336,20 @@ export default function Upload({ user }) {
       }
 
       // Handle Infographic Generation - Use React-based BentoInfographic
-      if (selectedFormats.visual.infographic) {
+      // The infographic is generated client-side but needs to be saved to the backend
+      if (selectedFormats.visual.infographic && enrichedResult.id) {
         try {
-          console.log("Generating Infographic (React Bento)...");
+          console.log("Generating Infographic (React Bento) and saving to backend...");
 
-          const infographicResponse = await api.generateInfographicData(file);
+          // Use the backend endpoint to generate and save infographic
+          const infographicResponse = await api.generateAdditionalFormat(
+            enrichedResult.id,
+            "infographic"
+          );
 
           if (infographicResponse && infographicResponse.data) {
-            enrichedResult.formats.infographic = {
-              type: "Infographic",
-              description: "Interactive visual summary",
-              data: infographicResponse.data, // JSON data for BentoInfographic component
-              render_type: "react_bento",
-              icon: "✨",
-            };
-            console.log("Infographic data generated successfully");
+            enrichedResult.formats.infographic = infographicResponse.data;
+            console.log("Infographic data generated and saved to backend successfully");
           } else {
             console.error("Failed to generate infographic data");
           }
@@ -384,6 +385,11 @@ export default function Upload({ user }) {
         finalResult = enrichedResult;
         setGeneratedResult(finalResult);
       }
+
+      // Refetch the results cache so Library shows the new upload immediately
+      // Using refetchQueries instead of invalidateQueries to force immediate refetch
+      // Must include userId in queryKey to match the Library's query key
+      await queryClient.refetchQueries({ queryKey: ["results", user?.id] });
 
       console.log(
         "✅ Content generated successfully. All formats available in Generated Content section."
